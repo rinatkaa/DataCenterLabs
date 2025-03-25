@@ -6,8 +6,8 @@
 - Адреса для Loopback интерфейсов: 10.00[DC num].0.0/23, 512 устройств на 1 DC
 - Линковые адреса: 10.10[DC_num].16.0/20
 - Правила именования коммутаторов:
-Spine Hostname: swsp-[DC_num]-num
-Leaf Hostname: swle-[DC_num]-num
+   - Spine Hostname: swsp-[DC_num]-num
+   - Leaf Hostname: swle-[DC_num]-num
 
 | Коммутатор  | Hostname  | Right Aligned |
 | :------------ |:---------------:| -----:|
