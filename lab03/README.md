@@ -59,6 +59,6 @@
    - все неиспользуемые интерфейсы выключить;
 
 ### План тестирования и диагностики:
-   - Убедиться в соседских отношениях по ospf (sh ip ospf summary/neighbor/database detail);
+   - Убедиться в наличии соседских отношений по ospf (sh ip ospf summary/neighbor/database detail);
    - Убедиться в наличии маршрутов адресов loopback spine/leaf на коммутаторах leaf;
    - Убедиться в работоспособности ECMP (наличие более одной записи для префиксов loopback в sh ip route ospf/sh ip ospf databas detail)
