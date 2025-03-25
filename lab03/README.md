@@ -9,13 +9,13 @@
    - Spine Hostname: swsp-[DC_num]-num
    - Leaf Hostname: swle-[DC_num]-num
 
-| Коммутатор  | Hostname  | Right Aligned |
+| Коммутатор  | Hostname  |  IP Loopback 0 |
 | :------------ |:---------------:| -----:|
-| Spine 1      | swsp-01-01 | $1600 |
-| Spine 2      | swsp-01-02 |   $12 |
-| Leaf 1 | swle-01-01 |    $1 |
-| Leaf 2 | swle-01-01 |    $1 |
-| Leaf 3 | swle-01-01 |    $1 |
+| Spine 1      | swsp-01-01 | 10.1.0.1 |
+| Spine 2      | swsp-01-02 |   10.1.0.2 |
+| Leaf 1 | swle-01-01 |    10.1.0.3 |
+| Leaf 2 | swle-01-02 |    10.1.0.4 |
+| Leaf 3 | swle-01-03 |    10.1.0.5 |
 
 - Сетевая схема
   
