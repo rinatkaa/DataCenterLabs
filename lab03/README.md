@@ -1,12 +1,20 @@
 1. Техническое задание на выполнение работ в DC
 
-2. Адресный план:
-  
-| Left-Aligned  | Center Aligned  | Right Aligned |
+2. Адресный план.
+   
+Общий план адресов: 10.0.0.0/8
+Адреса для Loopback интерфейсов: 10.00[DC num].0.0/23, 512 устройств на 1 DC
+Линковые адреса: 10.10[DC_num].16.0/20
+Spine Hostname: swsp-[DC_num]-num
+Leaf Hostname: swle-[DC_num]-num
+
+| Коммутатор  | Hostname  | Right Aligned |
 | :------------ |:---------------:| -----:|
-| col 3 is      | some wordy text | $1600 |
-| col 2 is      | centered        |   $12 |
-| zebra stripes | are neat        |    $1 |
+| Spine 1      | swsp-01-01 | $1600 |
+| Spine 2      | swsp-01-02 |   $12 |
+| Leaf 1 | swle-01-01 |    $1 |
+| Leaf 2 | swle-01-01 |    $1 |
+| Leaf 3 | swle-01-01 |    $1 |
 
 - Сетевая схема
   
