@@ -7,8 +7,8 @@
 - Адреса для Loopback интерфейсов: 10.00[DC num].0.0/23, 512 устройств на 1 DC;
 - Линковые адреса: 10.10[DC_num].16.0/20, для линковых сетей использовать /31, младший адрес на стороне Spine;
 - Правила именования коммутаторов:
-   - Spine Hostname: swsp-dc[DC_num]-num
-   - Leaf Hostname: swle-dc[DC_num]-num
+   - Spine Hostname: swsp-dc0[DC_num]-num
+   - Leaf Hostname: swle-dc0[DC_num]-num
 
 #### Таблица №1 Имена хостов и адреса Loopback
 | Коммутатор  | Hostname  |  IP Loopback 0 |
