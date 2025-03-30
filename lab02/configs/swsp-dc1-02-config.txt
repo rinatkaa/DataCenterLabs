@@ -27,7 +27,7 @@ interface Ethernet1
    ip ospf mtu-ignore
 !
 interface Ethernet2
-   description - Downlink to Leaf-1
+   description - Downlink to Leaf-2
    no switchport
    ip address 10.101.0.6/31
    ip ospf dead-interval 3
@@ -38,7 +38,7 @@ interface Ethernet2
    ip ospf mtu-ignore
 !
 interface Ethernet3
-   description - Downlink to Leaf-1
+   description - Downlink to Leaf-3
    no switchport
    ip address 10.101.0.10/31
    ip ospf dead-interval 3
@@ -47,16 +47,6 @@ interface Ethernet3
    ip ospf authentication message-digest
    ip ospf authentication-key 7 3U2u1ul6aPYsKT6Ng/7pGw==
    ip ospf mtu-ignore
-!
-interface Ethernet4
-!
-interface Ethernet5
-!
-interface Ethernet6
-!
-interface Ethernet7
-!
-interface Ethernet8
 !
 interface Loopback0
    ip address 10.1.0.2/32
