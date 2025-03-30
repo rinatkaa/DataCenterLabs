@@ -1,5 +1,5 @@
 ## Конфигурации устройств
-- SPINE switches:
+- Spine коммутаторы:
   - [swsp-dc1-1](swsp-dc1-01-config.txt)
   - [swsp-dc1-2](swsp-dc1-02-config.txt)
 - Leaf switches:
