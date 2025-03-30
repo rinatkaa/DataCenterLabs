@@ -22,3 +22,10 @@
 ### Выполнить контроль и проверки
 
 ### Конфигурации устройств
+- Spine коммутаторы:
+  - [swsp-dc1-1](configs/swsp-dc1-01-config.txt)
+  - [swsp-dc1-2](configs/swsp-dc1-02-config.txt)
+- Leaf коммутаторы:
+  - [swle-dc1-1](configs/swle-dc1-01-config.txt)
+  - [swle-dc1-2](configs/swle-dc1-02-config.txt)
+  - [swle-dc1-3](configs/swle-dc1-03-config.txt)
