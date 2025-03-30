@@ -1,0 +1,84 @@
+swle-dc01-01#sh running-config
+! Command: show running-config
+! device: swle-dc01-01 (vEOS-lab, EOS-4.29.2F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+enable password sha512 $6$f7JTeGKzr3dR2L7c$AZmOpW6KcJLnj5X5PmbQtQZekHelYGCgAKHruaC9rRNFXagReDb73Z4eqju8pgmHAYJHNPz2HuAXEq2Kg8Z/u.
+no aaa root
+!
+username user privilege 15 secret sha512 $6$InDCd6AQRyniGT8e$3ZWIGfO24uTvaqofV1ffGpBQeBFXJ7Mul1cf2koD0xmLYdQb0JFC9jX9.j.B62WROByamRE.z5r5UZKxKUGcv1
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model ribd
+!
+hostname swle-dc01-01
+!
+spanning-tree mode mstp
+!
+aaa authentication login console local
+aaa authorization exec default local
+!
+interface Ethernet1
+   description - Uplink to Spine 1
+   no switchport
+   ip address 10.101.0.0/31
+   ip ospf dead-interval 3
+   ip ospf hello-interval 1
+   ip ospf network point-to-point
+   ip ospf authentication message-digest
+   ip ospf authentication-key 7 sgGTXDsuogyB28zWDbh8/Q==
+   ip ospf mtu-ignore
+!
+interface Ethernet2
+   description - Uplink to Spine 2
+   no switchport
+   ip address 10.101.0.3/31
+   ip ospf dead-interval 3
+   ip ospf hello-interval 1
+   ip ospf network point-to-point
+   ip ospf authentication message-digest
+   ip ospf authentication-key 7 3U2u1ul6aPYsKT6Ng/7pGw==
+   ip ospf mtu-ignore
+!
+interface Ethernet3
+!
+interface Ethernet4
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Loopback0
+   ip address 10.1.0.3/32
+!
+interface Loopback1
+   ip address 10.1.0.100/32
+!
+interface Management1
+!
+ip routing
+!
+ip prefix-list redistribute-connected-pl
+   seq 10 permit 10.1.0.0/24 ge 32
+!
+route-map redistribute-connected-map permit 10
+   match ip address prefix-list redistribute-connected-pl
+!
+router ospf 1
+   router-id 10.1.0.3
+   bfd default
+   passive-interface default
+   no passive-interface Ethernet1
+   no passive-interface Ethernet2
+   passive-interface Ethernet3
+   redistribute connected route-map redistribute-connected-map
+   network 10.101.0.0/16 area 0.0.0.0
+   max-lsa 12000
+!
+end

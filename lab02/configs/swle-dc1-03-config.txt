@@ -1,0 +1,80 @@
+! Command: show running-config
+! device: swle-dc01-03 (vEOS-lab, EOS-4.29.2F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+enable password sha512 $6$hpMq17K8TEBhv1xl$GcvufCKsU7zJQTb5Tv/OtmZuYeC0CDCSdygO1i1ddY2YEefEtErH82rYVCqdfQXva67leLgsOIsAR6ntBznhg.
+no aaa root
+!
+username user privilege 15 secret sha512 $6$I1v2AF2fF3TQAL3a$FpvzbsGGFOBIARdwmTs21ltwTnEE4tbeC0HzisnZ8l0PWUhWaVuj39UBPq4CFsw0d0Y90RI4fpo7lsG0oqiFz/
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model ribd
+!
+hostname swle-dc01-03
+!
+spanning-tree mode mstp
+!
+aaa authentication login console local
+aaa authorization exec default local
+!
+interface Ethernet1
+   description - Uplink to Spine-1
+   no switchport
+   ip address 10.101.0.9/31
+   ip ospf dead-interval 3
+   ip ospf hello-interval 1
+   ip ospf network point-to-point
+   ip ospf authentication message-digest
+   ip ospf authentication-key 7 sgGTXDsuogyB28zWDbh8/Q==
+   ip ospf mtu-ignore
+!
+interface Ethernet2
+   description - Uplink to Spine-2
+   no switchport
+   ip address 10.101.0.11/31
+   ip ospf dead-interval 3
+   ip ospf hello-interval 1
+   ip ospf network point-to-point
+   ip ospf authentication message-digest
+   ip ospf authentication-key 7 3U2u1ul6aPYsKT6Ng/7pGw==
+   ip ospf mtu-ignore
+!
+interface Ethernet3
+!
+interface Ethernet4
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Loopback0
+   ip address 10.1.0.5/32
+!
+interface Management1
+!
+ip routing
+!
+ip prefix-list redistribute-connected-pl
+   seq 10 permit 10.1.0.0/24 ge 32
+!
+route-map redistribute-connected-map permit 10
+   match ip address prefix-list redistribute-connected-pl
+!
+router ospf 1
+   router-id 10.1.0.5
+   bfd default
+   passive-interface default
+   no passive-interface Ethernet1
+   no passive-interface Ethernet2
+   redistribute connected route-map redistribute-connected-map
+   network 10.101.0.0/16 area 0.0.0.0
+   max-lsa 12000
+   maximum-paths 16
+!
+end

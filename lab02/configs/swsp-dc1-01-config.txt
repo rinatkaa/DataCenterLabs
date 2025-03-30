@@ -1,0 +1,92 @@
+! Command: show running-config
+! device: swsp-dc01-01 (vEOS-lab, EOS-4.29.2F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+enable password sha512 $6$2MFeevV.KL6lLA2l$CKbv5/wP9YujMwjDxfZj8XTxcIssErW/mn8t15ek026D1iK4UopaEUZz7rrSDQ1nwBxzBl2xSCE1KCiCNdAj.1
+no aaa root
+!
+username rinatkaa secret sha512 $6$Pouw7tfNkDJdnVPE$1NjaUE0ES1YMp53YAxDsarwKvG9w3zhlC5jX27.yd85oSyDMeoTIoJGVVacN7M3s8k8a6GIHWVhSWg3l0zjVw1
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model ribd
+!
+hostname swsp-dc01-01
+!
+spanning-tree mode mstp
+!
+aaa authentication login console local
+aaa authorization exec default local
+!
+interface Ethernet1
+   description - Downlink for Leaf 1
+   no switchport
+   ip address 10.101.0.1/31
+   ip ospf dead-interval 3
+   ip ospf hello-interval 1
+   ip ospf network point-to-point
+   ip ospf authentication message-digest
+   ip ospf authentication-key 7 sgGTXDsuogyB28zWDbh8/Q==
+   ip ospf mtu-ignore
+!
+interface Ethernet2
+   description - Downlink for Leaf 2
+   no switchport
+   ip address 10.101.0.4/31
+   ip ospf dead-interval 3
+   ip ospf hello-interval 1
+   ip ospf network point-to-point
+   ip ospf authentication message-digest
+   ip ospf authentication-key 7 3U2u1ul6aPYsKT6Ng/7pGw==
+   ip ospf mtu-ignore
+!
+interface Ethernet3
+   description - Downlink for Leaf 3
+   no switchport
+   ip address 10.101.0.8/31
+   ip ospf dead-interval 3
+   ip ospf hello-interval 1
+   ip ospf network point-to-point
+   ip ospf authentication message-digest
+   ip ospf authentication-key 7 3U2u1ul6aPYsKT6Ng/7pGw==
+!
+interface Ethernet4
+   shutdown
+!
+interface Ethernet5
+   shutdown
+!
+interface Ethernet6
+   shutdown
+!
+interface Ethernet7
+   shutdown
+!
+interface Ethernet8
+   shutdown
+!
+interface Loopback0
+   ip address 10.1.0.1/32
+!
+interface Management1
+!
+ip routing
+!
+ip prefix-list redistribute-connected-pl
+   seq 10 permit 10.1.0.0/24 ge 32
+!
+route-map redistribute-connected-map permit 10
+   match ip address prefix-list redistribute-connected-pl
+!
+router ospf 1
+   router-id 10.1.0.1
+   bfd default
+   no passive-interface Ethernet1
+   no passive-interface Ethernet2
+   no passive-interface Ethernet3
+   redistribute connected route-map redistribute-connected-map
+   network 10.101.0.0/16 area 0.0.0.0
+   max-lsa 12000
+   log-adjacency-changes detail
+!
