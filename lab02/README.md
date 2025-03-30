@@ -1,4 +1,4 @@
-### Задание: Underlay. OSPF
+### Underlay. OSPF
 Цель: Настроить OSPF для Underlay сети
 
     Настроите OSPF в Underlay сети, для IP связанности между всеми сетевыми устройствами.
