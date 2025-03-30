@@ -1,8 +1,4 @@
-! Command: show running-config
-! device: swle-dc01-02 (vEOS-lab, EOS-4.29.2F)
-!
-! boot system flash:/vEOS-lab.swi
-!
+
 enable password sha512 $6$hbSH5BQeRg0pUDw/$xZTrH188sGsGSIc5pTiSQrpJ1RSSW.iKeE/KLJMNupOfwhcjutngpVAYQ08YSvzZLryOSRsQ6fcFaPeZzcOvU/
 no aaa root
 !
