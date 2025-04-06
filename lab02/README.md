@@ -77,7 +77,7 @@ Neighbor ID     Instance VRF      Pri State                  Dead Time   Address
 10.1.0.5        1        default  0   FULL                   00:00:01    10.101.0.11     Ethernet3
 ```
 
-- Убедиться в наличии маршрутов с типом LSA5 (redistribute) и работе ECMP:
+- Убедиться в наличии маршрутов адресов Loopback коммутаторов и работе ECMP:
 
 ##### Наличие маршрута 10.1.0.1/32 (Spine-1 loopback 0) через каждый из leaf свидетельствуют о корректной работе ECMP.
 ```
