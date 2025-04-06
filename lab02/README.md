@@ -11,7 +11,8 @@
 
 ### План выполнения работ
 #### Предусловие
-Выполнена коммутация и назначены IP адреса в соответствии с [Заданием 1]{https://github.com/rinatkaa/DataCenterLabs/tree/7e59cc8ceb32a081ec70271e0248e5d9934b8caa/lab01}
+Выполнена коммутация и назначены IP адреса в соответствии с [Заданием 1](https://github.com/rinatkaa/DataCenterLabs/tree/7e59cc8ceb32a081ec70271e0248e5d9934b8caa/lab01)
+
 
 ####  Настроить процесс маршрутизации OSPF
 Используется только Area 0
