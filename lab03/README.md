@@ -27,7 +27,7 @@ Underlay. IS-IS
 - Правила именования коммутаторов:
    - Spine Hostname: swsp-dc0[DC_num]-num
    - Leaf Hostname: swle-dc0[DC_num]-num
-- Линковые интерфейсы для стека ipv4: основной интерфейс Eth [0..n] 
+- Линковые интерфейсы для стека ipv4: основной интерфейс Eth [0..n] //сохраняю для будущих лаб, не используется в данной лабе
 - #### Линковые интерфейсы для стека ipv6: подинтерфейс Eth [0..n].10, с тэгом 802.1q 10
   
 #### Таблица №1 Имена хостов и адреса Loopback
@@ -45,74 +45,103 @@ Underlay. IS-IS
 
 
 ### 3. План выполнения работ
-#### 3.1 Предусловие
-Выполнена коммутация, настроены линковые интерфейсы и Loopback 1
+#### 3.1 Подготовительные работы
+Выполнена коммутация согласно п.2, настроены линковые интерфейсы и интерфейсы Loopback 1
 
+### 3.1.1 Включить ipv6 форвардинг:
+```ipv6 unicast-routing
+```
+### 3.1.2 Настроить линковые интерфейсы для ipv6
+Достаточно настройки link-local адресации для обеспечения форвардинга пакетов в пределах фабрики.
+```
+interface Ethernet2.10
+   description - Uplink to Spine-2
+   encapsulation dot1q vlan 10
+   ipv6 enable
+```
+                        
 
 #### 3.2 Настроить процесс маршрутизации ISIS
-- Используется только Area 0001;
-- С целью безопасности, выключить OSPF на всех интерфейсах;
+- Используется только Area 49.0001;
+- Используется только один тип отношений между устройствами level-2 - этого достаточно для работы фабрики и редистрибьюции коннектед маршрутов;
 - ECMP по умолчанию (128 одинаковых маршрутов для Arista);
 - Настроена редистрибуция connected маршрутов, для адресов Loopback с применением route-map + prefix-list;
 - Включить функционал BFD для интерфейсов на которых работает ISIS;
+
   
 ##### 3.2.1 Фрагмент конфигурации route-map + prefix-list:
 ```
-  ip prefix-list redistribute-connected-pl
+ip prefix-list redistribute-connected-pl
    seq 10 permit 10.1.0.0/24 ge 32
 !
-route-map redistribute-connected-map permit 10
-   match ip address prefix-list redistribute-connected-pl
-!
+ipv6 prefix-list rc6-pl
+   seq 10 permit fd::/61 ge 64
 ```
 
-##### 3.2.2 Фрагмент конфигурации процесса OSPF:
+##### 3.2.2 Фрагмент конфигурации процесса ISIS:
 ```
-router ospf 1
-   router-id 10.1.0.1
-   bfd default
-   no passive-interface Ethernet1
-   no passive-interface Ethernet2
-   no passive-interface Ethernet3
-   redistribute connected route-map redistribute-connected-map
-   network 10.101.0.0/16 area 0.0.0.0
-   max-lsa 12000
-   log-adjacency-changes detail
+router isis 1
+   net 49.0001.0000.0000.0003.00
+   is-type level-2
+   redistribute connected route-map rc6-map
+   !
+   address-family ipv6 unicast
 ```
 
-#### 3.3 Настроить атрибуты протокола OSPF на интерфейсах
+#### 3.3 Настроить атрибуты протокола ISIS на интерфейсах
+- включить на интерфейсе протокол ISIS;
 - Включить аутентификацию сообщений с вычислением md5 хэша;
 - Ключ аутентификации 'cisco' без кавычек;
-- Выключить зависимость от IP MTU;
-- Выключить выборы DR/BDR;
-- оптимизировать таймеры (helo 1 секунда, dead 3 секунды);
 
 ##### 3.3.1 Фрагмент конфигурации интерфейсов:
 ```
-interface Ethernet1
-   description - Downlink to Leaf-1
-   no switchport
-   ip address 10.101.0.2/31
-   ip ospf dead-interval 3
-   ip ospf hello-interval 1
-   ip ospf network point-to-point
-   ip ospf authentication message-digest
-   ip ospf authentication-key 7 sgGTXDsuogyB28zWDbh8/Q==
-   ip ospf mtu-ignore
+interface Ethernet1.10
+   description - Uplink to Spine-1
+   encapsulation dot1q vlan 10
+   ipv6 enable
+   isis enable 1
+   isis authentication mode md5
+   isis authentication key 7 KHWA0XKKZeJG8f+/WzG88A==
 ```
 
 ### 3.4 Выполнить контроль и проверки
 
+
+Проверка настройки ipv6 (Leaf 3): 
+
+swle-dc01-03#sh ipv6 int br
+Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
+---------- ------- ------ ---------------------------- ------------ -----------
+Et1.10     up       1500   fe80::5200:ff:fe15:f4e8/64   up          link local
+Et2.10     up       1500   fe80::5200:ff:fe15:f4e8/64   up          link local
+Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
+                           fd:0:0:5::1/64               up          config
+
+Проверка связности с соседом по ipv6 по link-local:
+```
+swle-dc01-03#show ipv6 neighbors ethernet2.10
+IPv6 Address                                  Age Hardware Addr    State Interface
+fe80::5200:ff:fe03:3766                   0:00:30 5000.0003.3766   REACH Et2.10
+```
+
+```
+swle-dc01-03#ping ipv6 fe80::5200:ff:fe03:3766 interface ethernet 2.10 size 1500
+PING fe80::5200:ff:fe03:3766(fe80::5200:ff:fe03:3766) from fe80::5200:ff:fe15:f4e8%et2.10 et2.10: 1452 data bytes
+1460 bytes from fe80::5200:ff:fe03:3766%et2.10: icmp_seq=1 ttl=64 time=14.1 ms
+1460 bytes from fe80::5200:ff:fe03:3766%et2.10: icmp_seq=2 ttl=64 time=19.3 ms
+```
+   
+
 - Убедиться в том, что соседские отношения подняты (проверку выполняем на spine):
 ```
-swsp-dc1-02#sh ip osp neighbor
+swsp-dc1-02#sh isis neighbor
 Neighbor ID     Instance VRF      Pri State                  Dead Time   Address         Interface
 10.1.0.3        1        default  0   FULL                   00:00:01    10.101.0.3      Ethernet1
 10.1.0.4        1        default  0   FULL                   00:00:01    10.101.0.7      Ethernet2
 10.1.0.5        1        default  0   FULL                   00:00:01    10.101.0.11     Ethernet3
 ```
 
-- Убедиться в наличии маршрутов адресов Loopback коммутаторов и работе ECMP:
+- Убедиться в наличии маршрутов адресов Loopback 1 коммутаторов и работе ECMP:
 
 ##### Наличие маршрута 10.1.0.1/32 (Spine-1 loopback 0) через каждый из leaf свидетельствуют о корректной работе ECMP.
 ```
