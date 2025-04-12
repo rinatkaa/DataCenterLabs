@@ -142,6 +142,21 @@ Instance  VRF      System Id        Type Interface          SNPA              St
 1         default  swsp-dc01-02     L2   Ethernet2.10       P2P               UP    29          1E
 ```
 
+- Убедиться в наличии ECMP, видим что для маршрутов от leaf 1 и 2 будет работать ECMP (проверку выполняем на leaf-3):
+```
+swle-dc01-03#sh isis network topology
+
+IS-IS Instance: 1 VRF: default
+  IS-IS paths to level-2 routers
+    System Id        Metric   IA Metric Next-Hop         Interface                SNPA
+    swle-dc01-01     20       0         swsp-dc01-01     Ethernet1.10             P2P
+                                        swsp-dc01-02     Ethernet2.10             P2P
+    swle-dc01-02     20       0         swsp-dc01-01     Ethernet1.10             P2P
+                                        swsp-dc01-02     Ethernet2.10             P2P
+    swsp-dc01-01     10       0         swsp-dc01-01     Ethernet1.10             P2P
+    swsp-dc01-02     10       0         swsp-dc01-02     Ethernet2.10             P2P
+```
+
 - Убедиться в наличии маршрутов адресов Loopback 1 коммутаторов leaf и работе ECMP:
 
 ```
