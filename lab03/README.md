@@ -125,9 +125,7 @@ Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
 swle-dc01-03#show ipv6 neighbors ethernet2.10
 IPv6 Address                                  Age Hardware Addr    State Interface
 fe80::5200:ff:fe03:3766                   0:00:30 5000.0003.3766   REACH Et2.10
-```
 
-```
 swle-dc01-03#ping ipv6 fe80::5200:ff:fe03:3766 interface ethernet 2.10 size 1500
 PING fe80::5200:ff:fe03:3766(fe80::5200:ff:fe03:3766) from fe80::5200:ff:fe15:f4e8%et2.10 et2.10: 1452 data bytes
 1460 bytes from fe80::5200:ff:fe03:3766%et2.10: icmp_seq=1 ttl=64 time=14.1 ms
@@ -188,14 +186,13 @@ Codes: C - Connected, S - Static, P - Route Input
          via fe80::5200:ff:fe03:3766, Ethernet2.10
 ```
 
-
-- Выполняем проверку связности между адресами Loopback Leaf коммутаторов:
+- Выполняем проверку связности между адресами Loopback 1 Leaf коммутаторов:
 ```
-swle-dc01-01#ping 10.1.0.4 size 1500 df-bit source loopback 0
-PING 10.1.0.4 (10.1.0.4) from 10.1.0.3 : 1472(1500) bytes of data.
-1480 bytes from 10.1.0.4: icmp_seq=1 ttl=63 time=22.9 ms
-1480 bytes from 10.1.0.4: icmp_seq=2 ttl=63 time=31.7 ms
-1480 bytes from 10.1.0.4: icmp_seq=3 ttl=63 time=34.5 ms
+swle-dc01-03#ping ipv6 fd:0:0:3::1
+PING fd:0:0:3::1(fd:0:0:3::1) 52 data bytes
+60 bytes from fd:0:0:3::1: icmp_seq=1 ttl=63 time=24.0 ms
+60 bytes from fd:0:0:3::1: icmp_seq=2 ttl=63 time=17.1 ms
+60 bytes from fd:0:0:3::1: icmp_seq=3 ttl=63 time=20.1 ms
 ```
 
 ### 4 Конфигурации устройств
