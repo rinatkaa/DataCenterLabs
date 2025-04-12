@@ -91,8 +91,9 @@ router isis 1
 
 #### 3.3 Настроить атрибуты протокола ISIS на интерфейсах
 - включить на интерфейсе протокол ISIS;
-- Включить аутентификацию сообщений с вычислением md5 хэша;
-- Ключ аутентификации 'cisco' без кавычек;
+- включить network type point-to-point;
+- включить аутентификацию сообщений с вычислением md5 хэша;
+- ключ аутентификации 'cisco' без кавычек;
 
 ##### 3.3.1 Фрагмент конфигурации интерфейсов:
 ```
@@ -101,6 +102,7 @@ interface Ethernet1.10
    encapsulation dot1q vlan 10
    ipv6 enable
    isis enable 1
+   isis network point-to-point
    isis authentication mode md5
    isis authentication key 7 KHWA0XKKZeJG8f+/WzG88A==
 ```
@@ -133,77 +135,59 @@ PING fe80::5200:ff:fe03:3766(fe80::5200:ff:fe03:3766) from fe80::5200:ff:fe15:f4
 ```
    
 
-- Убедиться в том, что соседские отношения подняты (проверку выполняем на spine):
+- Убедиться в том, что соседские отношения подняты (проверку выполняем на leaf-3):
 ```
-swsp-dc1-02#sh isis neighbor
-Neighbor ID     Instance VRF      Pri State                  Dead Time   Address         Interface
-10.1.0.3        1        default  0   FULL                   00:00:01    10.101.0.3      Ethernet1
-10.1.0.4        1        default  0   FULL                   00:00:01    10.101.0.7      Ethernet2
-10.1.0.5        1        default  0   FULL                   00:00:01    10.101.0.11     Ethernet3
+swle-dc01-03#sh isis neighbors
+
+Instance  VRF      System Id        Type Interface          SNPA              State Hold time   Circuit Id
+1         default  swsp-dc01-01     L2   Ethernet1.10       P2P               UP    27          20
+1         default  swsp-dc01-02     L2   Ethernet2.10       P2P               UP    29          1E
 ```
 
-- Убедиться в наличии маршрутов адресов Loopback 1 коммутаторов и работе ECMP:
+- Убедиться в наличии маршрутов адресов Loopback 1 коммутаторов leaf и работе ECMP:
 
-##### Наличие маршрута 10.1.0.1/32 (Spine-1 loopback 0) через каждый из leaf свидетельствуют о корректной работе ECMP.
 ```
-swsp-dc1-02#sh ip route ospf
+swle-dc01-03#sh ipv6 route
 
 VRF: default
-Codes: C - connected, S - static, K - kernel,
-       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1,
-       E2 - OSPF external type 2, N1 - OSPF NSSA external type 1,
-       N2 - OSPF NSSA external type2, B - Other BGP Routes,
-       B I - iBGP, B E - eBGP, R - RIP, I L1 - IS-IS level 1,
-       I L2 - IS-IS level 2, O3 - OSPFv3, A B - BGP Aggregate,
-       A O - OSPF Summary, NG - Nexthop Group Static Route,
-       V - VXLAN Control Service, M - Martian,
-       DH - DHCP client installed default route,
+Displaying 5 of 10 IPv6 routing table entries
+Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
+       B - Other BGP Routes, A B - BGP Aggregate, R - RIP,
+       I L1 - IS-IS level 1, I L2 - IS-IS level 2, DH - DHCP,
+       NG - Nexthop Group Static Route, M - Martian,
        DP - Dynamic Policy Route, L - VRF Leaked,
-       G  - gRIBI, RC - Route Cache Route
+       RC - Route Cache Route
 
- O E2     10.1.0.1/32 [110/1] via 10.101.0.3, Ethernet1
-                              via 10.101.0.7, Ethernet2
-                              via 10.101.0.11, Ethernet3
- O E2     10.1.0.3/32 [110/1] via 10.101.0.3, Ethernet1
- O E2     10.1.0.4/32 [110/1] via 10.101.0.7, Ethernet2
- O E2     10.1.0.5/32 [110/1] via 10.101.0.11, Ethernet3
- O        10.101.0.0/31 [110/20] via 10.101.0.3, Ethernet1
- O        10.101.0.4/31 [110/20] via 10.101.0.7, Ethernet2
- O        10.101.0.8/31 [110/20] via 10.101.0.11, Ethernet3
+ I L2     fd:0:0:1::/64 [115/11]
+           via fe80::5200:ff:fed5:5dc0, Ethernet1.10
+ I L2     fd:0:0:2::/64 [115/11]
+           via fe80::5200:ff:fe03:3766, Ethernet2.10
+ I L2     fd:0:0:3::/64 [115/21]
+           via fe80::5200:ff:fed5:5dc0, Ethernet1.10
+           via fe80::5200:ff:fe03:3766, Ethernet2.10
+ I L2     fd:0:0:4::/64 [115/21]
+           via fe80::5200:ff:fed5:5dc0, Ethernet1.10
+           via fe80::5200:ff:fe03:3766, Ethernet2.10
+ C        fd:0:0:5::/64 [0/1]
+           via Loopback1, directly connected
 ```
-- Аналогично убеждаемся в корректности настройки на стороне leaf:
+
+##### Наличие маршрута fd:0:0:3::/64 и fd:0:0:4::/64 (loopback 1 leaf-1 и leaf-2) через оба spine, свидетельствуют о корректной работе ECMP.
+
+Дополнительно вывод routing information base для ipv6 префикса fd:0:0:3::/64, свидетельствует о том же:
 
 ```
-swle-dc01-01#sh ip route ospf
-
+swle-dc01-03#sh rib route ipv6 fd:0:0:3::/64
 VRF: default
-Codes: C - connected, S - static, K - kernel,
-       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1,
-       E2 - OSPF external type 2, N1 - OSPF NSSA external type 1,
-       N2 - OSPF NSSA external type2, B - Other BGP Routes,
-       B I - iBGP, B E - eBGP, R - RIP, I L1 - IS-IS level 1,
-       I L2 - IS-IS level 2, O3 - OSPFv3, A B - BGP Aggregate,
-       A O - OSPF Summary, NG - Nexthop Group Static Route,
-       V - VXLAN Control Service, M - Martian,
-       DH - DHCP client installed default route,
-       DP - Dynamic Policy Route, L - VRF Leaked,
-       G  - gRIBI, RC - Route Cache Route
-
- O E2     10.1.0.1/32 [110/1] via 10.101.0.1, Ethernet1
- O E2     10.1.0.2/32 [110/1] via 10.101.0.2, Ethernet2
- O E2     10.1.0.4/32 [110/1] via 10.101.0.1, Ethernet1
-                              via 10.101.0.2, Ethernet2
- O E2     10.1.0.5/32 [110/1] via 10.101.0.1, Ethernet1
-                              via 10.101.0.2, Ethernet2
- O        10.101.0.4/31 [110/20] via 10.101.0.1, Ethernet1
- O        10.101.0.6/31 [110/20] via 10.101.0.2, Ethernet2
- O        10.101.0.8/31 [110/20] via 10.101.0.1, Ethernet1
- O        10.101.0.10/31 [110/20] via 10.101.0.2, Ethernet2
+Codes: C - Connected, S - Static, P - Route Input
+       B - BGP, O - OSPF, O3 - OSPF3, I - IS-IS
+       > - Best Route, * - Unresolved Nexthop
+       L - Part of a recursive route resolution loop
+>I    fd:0:0:3::/64 [115/21]
+         via fe80::5200:ff:fed5:5dc0, Ethernet1.10
+         via fe80::5200:ff:fe03:3766, Ethernet2.10
 ```
 
-- Обращаем внимание на наличие в таблице маршрутизации более 1 маршрута для Loopback интерфейсов двух других Leaf коммутаторов:
-    - 10.1.0.4/32
-    - 10.1.0.5/32
 
 - Выполняем проверку связности между адресами Loopback Leaf коммутаторов:
 ```
@@ -216,9 +200,9 @@ PING 10.1.0.4 (10.1.0.4) from 10.1.0.3 : 1472(1500) bytes of data.
 
 ### 4 Конфигурации устройств
 - Spine коммутаторы:
-  - [swsp-dc1-1](configs/swsp-dc1-01-config.txt)
-  - [swsp-dc1-2](configs/swsp-dc1-02-config.txt)
+  - [swsp-dc1-1](configs/swsp-dc1-01.conf)
+  - [swsp-dc1-2](configs/swsp-dc1-02.conf)
 - Leaf коммутаторы:
-  - [swle-dc1-1](configs/swle-dc1-01-config.txt)
-  - [swle-dc1-2](configs/swle-dc1-02-config.txt)
-  - [swle-dc1-3](configs/swle-dc1-03-config.txt)
+  - [swle-dc1-1](configs/swle-dc1-01.conf)
+  - [swle-dc1-2](configs/swle-dc1-02.conf)
+  - [swle-dc1-3](configs/swle-dc1-03.conf)
