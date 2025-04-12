@@ -107,9 +107,8 @@ interface Ethernet1.10
 
 ### 3.4 Выполнить контроль и проверки
 
-
 Проверка настройки ipv6 (Leaf 3): 
-
+```
 swle-dc01-03#sh ipv6 int br
 Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
 ---------- ------- ------ ---------------------------- ------------ -----------
@@ -117,6 +116,7 @@ Et1.10     up       1500   fe80::5200:ff:fe15:f4e8/64   up          link local
 Et2.10     up       1500   fe80::5200:ff:fe15:f4e8/64   up          link local
 Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
                            fd:0:0:5::1/64               up          config
+```
 
 Проверка связности с соседом по ipv6 по link-local:
 ```
