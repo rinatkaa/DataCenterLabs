@@ -212,9 +212,9 @@ PING fd:0:0:3::1(fd:0:0:3::1) 52 data bytes
 
 ### 4 Конфигурации устройств
 - Spine коммутаторы:
-  - [swsp-dc1-1](configs/swsp-dc1-01.conf)
-  - [swsp-dc1-2](configs/swsp-dc1-02.conf)
+  - [swsp-dc1-1](configs/swsp-dc01-01.conf)
+  - [swsp-dc1-2](configs/swsp-dc01-02.conf)
 - Leaf коммутаторы:
-  - [swle-dc1-1](configs/swle-dc1-01.conf)
-  - [swle-dc1-2](configs/swle-dc1-02.conf)
-  - [swle-dc1-3](configs/swle-dc1-03.conf)
+  - [swle-dc1-1](configs/swle-dc01-01.conf)
+  - [swle-dc1-2](configs/swle-dc01-02.conf)
+  - [swle-dc1-3](configs/swle-dc01-03.conf)
