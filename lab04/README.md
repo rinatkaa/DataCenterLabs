@@ -63,7 +63,7 @@ service routing protocols model multi-agent
 ```
 
 ### 3.1.2 Настроить линковые интерфейсы для ipv6
-Достаточно настройки link-local адресации для обеспечения форвардинга пакетов в пределах фабрики.
+Достаточно настройки link-local адресации для обеспечения соседской связности по BGP в пределах фабрики.
 ```
 interface Ethernet2.10
    description - Uplink to Spine-2
@@ -171,7 +171,7 @@ Neighbor Status Codes: m - Under maintenance
   fe80::5200:ff:fe03:3766%Et2.10 4 65000            104       110    0    0 01:09:46 Estab   3      3
   fe80::5200:ff:fed5:5dc0%Et1.10 4 65000            127       129    0    0 01:09:45 Estab   3      3
 ```
-- Убедиться в наличии маршрутов адресов Loopback в апдейтах от Spine:
+- Убедиться в наличии маршрутов адресов Loopback в апдейтах от Spine, убедиться в наличии ECMP префиксов fd:0:0:3::/64 и fd:0:0:4::/64:
 ```
   swle-dc01-03#sh ipv6 bgp
 BGP routing table information for VRF default
@@ -194,12 +194,12 @@ AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Li
 ```
 
 
-- Убедиться в наличии маршрутов адресов Loopback 1 коммутаторов leaf и работе ECMP:
+- Убедиться в наличии маршрутов адресов Loopback 1 коммутаторов leaf и работе ECMP для префиксов fd:0:0:3::/64 и fd:0:0:4::/64:
 ```
 swle-dc01-03#sh ipv6 route
 
 VRF: default
-Displaying 5 of 10 IPv6 routing table entries
+Displaying 5 of 9 IPv6 routing table entries
 Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
        B - Other BGP Routes, A B - BGP Aggregate, R - RIP,
        I L1 - IS-IS level 1, I L2 - IS-IS level 2, DH - DHCP,
@@ -207,34 +207,39 @@ Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
        DP - Dynamic Policy Route, L - VRF Leaked,
        RC - Route Cache Route
 
- I L2     fd:0:0:1::/64 [115/11]
+ B E      fd:0:0:1::/64 [200/0]
            via fe80::5200:ff:fed5:5dc0, Ethernet1.10
- I L2     fd:0:0:2::/64 [115/11]
+ B E      fd:0:0:2::/64 [200/0]
            via fe80::5200:ff:fe03:3766, Ethernet2.10
- I L2     fd:0:0:3::/64 [115/21]
-           via fe80::5200:ff:fed5:5dc0, Ethernet1.10
-           via fe80::5200:ff:fe03:3766, Ethernet2.10
- I L2     fd:0:0:4::/64 [115/21]
+ B E      fd:0:0:3::/64 [200/0]
            via fe80::5200:ff:fed5:5dc0, Ethernet1.10
            via fe80::5200:ff:fe03:3766, Ethernet2.10
- C        fd:0:0:5::/64 [0/1]
+ B E      fd:0:0:4::/64 [200/0]
+           via fe80::5200:ff:fed5:5dc0, Ethernet1.10
+           via fe80::5200:ff:fe03:3766, Ethernet2.10
+ C        fd:0:0:5::/64 [0/0]
            via Loopback1, directly connected
 ```
 
 ##### Наличие маршрута fd:0:0:3::/64 и fd:0:0:4::/64 (loopback 1 leaf-1 и leaf-2) через оба spine, свидетельствуют о корректной работе ECMP.
 
-Дополнительно вывод routing information base для ipv6 префикса fd:0:0:3::/64, свидетельствует о том же:
+Дополнительно вывод routing information base для ipv6 префикса fd:0:0:3::/64, свидетельствует о том что маршрут попадает в таблицу маршрутизации от BGP и работает ECMP:
 
 ```
 swle-dc01-03#sh rib route ipv6 fd:0:0:3::/64
 VRF: default
-Codes: C - Connected, S - Static, P - Route Input
-       B - BGP, O - OSPF, O3 - OSPF3, I - IS-IS
-       > - Best Route, * - Unresolved Nexthop
+Codes: C - Connected, S - Static, P - Route Input, G - Gribi
+       B - BGP, O - Ospf, O3 - Ospf3, I - Isis, R - Rip, VL - VRF Leak
+       > - Best Route, * - Unresolved Next hop
+       EM - Exact match of the SR-TE Policy
+       NM - Null endpoint match of the SR-TE Policy
+       AM - Any endpoint match of the SR-TE Policy
        L - Part of a recursive route resolution loop
->I    fd:0:0:3::/64 [115/21]
-         via fe80::5200:ff:fed5:5dc0, Ethernet1.10
+       A - Next hop not resolved in ARP/ND
+       NF - Not in FEC
+>B    fd:0:0:3::/64 [200 pref/0 MED] updated 00:40:36 ago
          via fe80::5200:ff:fe03:3766, Ethernet2.10
+         via fe80::5200:ff:fed5:5dc0, Ethernet1.10
 ```
 
 - Выполняем проверку связности между адресами Loopback 1 Leaf коммутаторов:
