@@ -1,0 +1,63 @@
+ipv6 unicast-routing
+//subinterfaces for leaves:
+
+interface Ethernet1.10
+   description - Uplink to Spine-1
+   encapsulation dot1q vlan 10
+   ipv6 enable
+   isis enable 1
+   isis authentication key 0 cisco
+   isis authentication mode md5
+
+interface Ethernet2.10
+   description - Uplink to Spine-2
+   encapsulation dot1q vlan 10
+   ipv6 enable
+   isis enable 1
+   isis authentication key 0 cisco
+   isis authentication mode md5
+
+ipv6 prefix-list rc6-pl
+    seq 10 permit fd::/61 ge 64
+
+route-map rc6-map permit 10
+   match ipv6 address prefix-list rc6-pl
+
+router isis 1
+   net 49.0001.0000.0000.0002.00
+   is-type level-2
+   redistribute connected route-map rc6-map
+   !
+   address-family ipv6 unicast
+
+
+// spine config subinterfaces:
+interface Ethernet1.10
+   description - Downlink for Leaf 1
+   encapsulation dot1q vlan 10
+   ipv6 enable
+   isis enable 1
+   isis ipv6 bfd
+   isis authentication mode md5
+   isis authentication key 7 KHWA0XKKZeJG8f+/WzG88A==
+
+interface Ethernet2.10
+   description - Downlink for Leaf 2
+   encapsulation dot1q vlan 10
+   ipv6 enable
+   isis enable 1
+   isis ipv6 bfd
+   isis authentication mode md5
+   isis authentication key 7 KHWA0XKKZeJG8f+/WzG88A==
+
+interface Ethernet3.10
+   description - Downlink for Leaf 2
+   encapsulation dot1q vlan 10
+   ipv6 enable
+   isis enable 1
+   isis ipv6 bfd
+   isis authentication mode md5
+   isis authentication key 7 KHWA0XKKZeJG8f+/WzG88A==
+
+
+
