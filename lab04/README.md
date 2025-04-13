@@ -21,8 +21,7 @@ Underlay. BGP
 
 ### 2. Адресный план и правила именования коммутаторов:
 
-На устройствах одновременно настраивается оба стека IPv4, IPv6 с отдельными процессами маршрутизации.
-Протокол ISIS настривается для IPv6
+Протокол eBGP настривается для работы с IPv6 адресацией.
       
 - Общий план адресов ipv4: 10.0.0.0/8;
 - Адреса для Loopback интерфейсов ipv4: 10.00[DC num].0.0/23, 512 устройств на 1 DC;
@@ -57,6 +56,12 @@ Underlay. BGP
 ```
 ipv6 unicast-routing
 ```
+
+### 3.1.2 Включить работу расширений BGP на Arista:
+```
+service routing protocols model multi-agent
+```
+
 ### 3.1.2 Настроить линковые интерфейсы для ipv6
 Достаточно настройки link-local адресации для обеспечения форвардинга пакетов в пределах фабрики.
 ```
@@ -67,12 +72,13 @@ interface Ethernet2.10
 ```
                         
 
-#### 3.2 Настроить процесс маршрутизации ISIS
-- Используется только Area 49.0001;
-- Используется только один тип отношений между устройствами level-2 - этого достаточно для работы фабрики и редистрибьюции коннектед маршрутов;
-- ECMP по умолчанию;
-- Настроена редистрибуция connected маршрутов, для адресов Loopback с применением route-map + prefix-list;
-- Включить функционал BFD для интерфейсов на которых работает ISIS;
+#### 3.2 Настроить процесс маршрутизации BGP (на примере Leaf-3)
+- Согласно таблицы №1 65003;
+- Включаем ECMP, указав maximum-path 10;
+- Настраиваем редистрибуцию connected маршрутов, для адресов Loopback с применением route-map + prefix-list;
+- Настраиваем соседские отношения для Spine-1 и Spine-2;
+- Включаем функционал BFD для каждого соседа;
+- Включаем фильтр входящих префиксов по AS-Path;
 
   
 ##### 3.2.1 Фрагмент конфигурации route-map + prefix-list:
@@ -84,86 +90,111 @@ ipv6 prefix-list rc6-pl
    seq 10 permit fd::/61 ge 64
 ```
 
-##### 3.2.2 Фрагмент конфигурации процесса ISIS:
+
+##### 3.2.1 Фрагмент конфигурации route-map + as-path для фильтрации префиксов от устройств Spine:
 ```
-router isis 1
-   net 49.0001.0000.0000.0003.00
-   is-type level-2
-   redistribute connected route-map rc6-map
+ip as-path access-list in-as-path permit 65000$ any
+ip as-path access-list in-as-path permit 65001$ any
+ip as-path access-list in-as-path permit 65002$ any
+ip as-path access-list in-as-path permit 65003$ any
+!
+route-map bgp-in-map permit 10
+   match as-path in-as-path
+```
+
+
+##### 3.2.2 Фрагмент конфигурации процесса BGP на устройстве Leaf-3:
+```
+router bgp 65003
+   router-id 10.1.0.5
+   no bgp default ipv4-unicast
+   bgp default ipv6-unicast
+   maximum-paths 10
+   neighbor spine-1 peer group
+   neighbor spine-1 bfd
+   neighbor spine-1 route-map in-as-path in
+   neighbor spine-2 peer group
+   neighbor spine-2 bfd
+   neighbor spine-2 route-map in-as-path in
+   neighbor fe80::5200:ff:fe03:3766%Et2.10 peer group spine-2
+   neighbor fe80::5200:ff:fe03:3766%Et2.10 remote-as 65000
+   neighbor fe80::5200:ff:fed5:5dc0%Et1.10 peer group spine-1
+   neighbor fe80::5200:ff:fed5:5dc0%Et1.10 remote-as 65000
    !
-   address-family ipv6 unicast
+   address-family ipv6
+      neighbor spine-1 activate
+      neighbor spine-2 activate
+      network fd::/61
+      redistribute connected route-map rc6-map
 ```
 
-#### 3.3 Настроить атрибуты протокола ISIS на интерфейсах
-- включить на интерфейсе протокол ISIS;
-- включить network type point-to-point;
-- включить аутентификацию сообщений с вычислением md5 хэша;
-- ключ аутентификации 'cisco' без кавычек;
-
-##### 3.3.1 Фрагмент конфигурации интерфейсов:
+##### 3.2.2 Фрагмент конфигурации процесса BGP на устройстве Spine-1:
 ```
-interface Ethernet1.10
-   description - Uplink to Spine-1
-   encapsulation dot1q vlan 10
-   ipv6 enable
-   isis enable 1
-   isis network point-to-point
-   isis authentication mode md5
-   isis authentication key 7 KHWA0XKKZeJG8f+/WzG88A==
+router bgp 65000
+   router-id 10.1.0.1
+   no bgp default ipv4-unicast
+   bgp default ipv6-unicast
+   maximum-paths 10
+   neighbor leaf-1 peer group
+   neighbor leaf-1 bfd
+   neighbor leaf-1 route-map in-as-path in
+   neighbor leaf-2 peer group
+   neighbor leaf-2 bfd
+   neighbor leaf-2 route-map in-as-path in
+   neighbor leaf-3 peer group
+   neighbor leaf-3 bfd
+   neighbor leaf-3 route-map in-as-path in
+   neighbor fe80::5200:ff:fe15:f4e8%Et3.10 peer group leaf-3
+   neighbor fe80::5200:ff:fe15:f4e8%Et3.10 remote-as 65003
+   neighbor fe80::5200:ff:fecb:38c2%Et2.10 peer group leaf-2
+   neighbor fe80::5200:ff:fecb:38c2%Et2.10 remote-as 65002
+   neighbor fe80::5200:ff:fed7:ee0b%Et1.10 peer group leaf-1
+   neighbor fe80::5200:ff:fed7:ee0b%Et1.10 remote-as 65001
+   !
+   address-family ipv6
+      neighbor leaf-1 activate
+      neighbor leaf-2 activate
+      neighbor leaf-3 activate
+      redistribute connected route-map rc6-map
+!
 ```
 
 ### 3.4 Выполнить контроль и проверки
 
-Проверка настройки ipv6 (Leaf 3): 
-```
-swle-dc01-03#sh ipv6 int br
-Interface  Status    MTU   IPv6 Address                 Addr State  Addr Source
----------- ------- ------ ---------------------------- ------------ -----------
-Et1.10     up       1500   fe80::5200:ff:fe15:f4e8/64   up          link local
-Et2.10     up       1500   fe80::5200:ff:fe15:f4e8/64   up          link local
-Lo1        up      65535   fe80::ff:fe00:0/64           up          link local
-                           fd:0:0:5::1/64               up          config
-```
-
-Проверка связности с соседом по ipv6 по link-local:
-```
-swle-dc01-03#show ipv6 neighbors ethernet2.10
-IPv6 Address                                  Age Hardware Addr    State Interface
-fe80::5200:ff:fe03:3766                   0:00:30 5000.0003.3766   REACH Et2.10
-
-swle-dc01-03#ping ipv6 fe80::5200:ff:fe03:3766 interface ethernet 2.10 size 1500
-PING fe80::5200:ff:fe03:3766(fe80::5200:ff:fe03:3766) from fe80::5200:ff:fe15:f4e8%et2.10 et2.10: 1452 data bytes
-1460 bytes from fe80::5200:ff:fe03:3766%et2.10: icmp_seq=1 ttl=64 time=14.1 ms
-1460 bytes from fe80::5200:ff:fe03:3766%et2.10: icmp_seq=2 ttl=64 time=19.3 ms
-```
-   
-
 - Убедиться в том, что соседские отношения подняты (проверку выполняем на leaf-3):
 ```
-swle-dc01-03#sh isis neighbors
+swle-dc01-03#sh ipv6 bgp summary
+BGP summary information for VRF default
+Router identifier 10.1.0.5, local AS number 65003
+Neighbor Status Codes: m - Under maintenance
+  Neighbor                       V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  fe80::5200:ff:fe03:3766%Et2.10 4 65000            104       110    0    0 01:09:46 Estab   3      3
+  fe80::5200:ff:fed5:5dc0%Et1.10 4 65000            127       129    0    0 01:09:45 Estab   3      3
+```
+- Убедиться в наличии маршрутов адресов Loopback в апдейтах от Spine:
+```
+  swle-dc01-03#sh ipv6 bgp
+BGP routing table information for VRF default
+Router identifier 10.1.0.5, local AS number 65003
+Route status codes: s - suppressed contributor, * - valid, > - active, E - ECMP head, e - ECMP
+                    S - Stale, c - Contributing to ECMP, b - backup, L - labeled-unicast
+                    % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+RPKI Origin Validation codes: V - valid, I - invalid, U - unknown
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
 
-Instance  VRF      System Id        Type Interface          SNPA              State Hold time   Circuit Id
-1         default  swsp-dc01-01     L2   Ethernet1.10       P2P               UP    27          20
-1         default  swsp-dc01-02     L2   Ethernet2.10       P2P               UP    29          1E
+          Network                Next Hop              Metric  AIGP       LocPref Weight  Path
+ * >      fd:0:0:1::/64          fe80::5200:ff:fed5:5dc0%Et1.10 0       -          100     0       65000 i
+ * >      fd:0:0:2::/64          fe80::5200:ff:fe03:3766%Et2.10 0       -          100     0       65000 i
+ * >Ec    fd:0:0:3::/64          fe80::5200:ff:fed5:5dc0%Et1.10 0       -          100     0       65000 65001 i
+ *  ec    fd:0:0:3::/64          fe80::5200:ff:fe03:3766%Et2.10 0       -          100     0       65000 65001 i
+ * >Ec    fd:0:0:4::/64          fe80::5200:ff:fed5:5dc0%Et1.10 0       -          100     0       65000 65002 i
+ *  ec    fd:0:0:4::/64          fe80::5200:ff:fe03:3766%Et2.10 0       -          100     0       65000 65002 i
+ * >      fd:0:0:5::/64          -                     -       -          -       0       i
 ```
 
-- Убедиться в наличии ECMP, видим что для маршрутов от leaf 1 и 2 будет работать ECMP (проверку выполняем на leaf-3):
-```
-swle-dc01-03#sh isis network topology
-
-IS-IS Instance: 1 VRF: default
-  IS-IS paths to level-2 routers
-    System Id        Metric   IA Metric Next-Hop         Interface                SNPA
-    swle-dc01-01     20       0         swsp-dc01-01     Ethernet1.10             P2P
-                                        swsp-dc01-02     Ethernet2.10             P2P
-    swle-dc01-02     20       0         swsp-dc01-01     Ethernet1.10             P2P
-                                        swsp-dc01-02     Ethernet2.10             P2P
-    swsp-dc01-01     10       0         swsp-dc01-01     Ethernet1.10             P2P
-    swsp-dc01-02     10       0         swsp-dc01-02     Ethernet2.10             P2P
-```
 
 - Убедиться в наличии маршрутов адресов Loopback 1 коммутаторов leaf и работе ECMP:
-
 ```
 swle-dc01-03#sh ipv6 route
 
