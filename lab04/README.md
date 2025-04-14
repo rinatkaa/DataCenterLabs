@@ -81,9 +81,9 @@ interface Ethernet2.10
 - Включаем функционал BFD для каждого соседа;
 - Включаем фильтр входящих префиксов по AS-Path;
 - Оптимизировать таймеры BGP (для всех устройств):
-- Route Advertisement Timer 'advertisement-interval 0'
-- Keepalive/Hold: 20/60
-- graceful-restart 'restart-time 120'
+    - Route Advertisement Timer 'advertisement-interval 0'
+    - Keepalive/Hold: 20/60
+    - graceful-restart 'restart-time 120'
 
   
 ##### 3.2.1 Фрагмент конфигурации route-map + prefix-list:
