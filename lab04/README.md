@@ -79,6 +79,10 @@ interface Ethernet2.10
 - Настраиваем соседские отношения для Spine-1 и Spine-2;
 - Включаем функционал BFD для каждого соседа;
 - Включаем фильтр входящих префиксов по AS-Path;
+- Оптимизировать таймеры:
+-- Route Advertisement Timer 'advertisement-interval 0'
+-- Keepalive/Hold: 20/60
+-- graceful-restart 'restart-tim 120'
 
   
 ##### 3.2.1 Фрагмент конфигурации route-map + prefix-list:
