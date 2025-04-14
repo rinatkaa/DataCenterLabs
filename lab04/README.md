@@ -62,13 +62,14 @@ ipv6 unicast-routing
 service routing protocols model multi-agent
 ```
 
-### 3.1.2 Настроить линковые интерфейсы для ipv6
+### 3.1.2 Настроить линковые интерфейсы для ipv6 + bfd
 Достаточно настройки link-local адресации для обеспечения соседской связности по BGP в пределах фабрики.
 ```
 interface Ethernet2.10
    description - Uplink to Spine-2
    encapsulation dot1q vlan 10
    ipv6 enable
+   bfd interval 300 min_rx 300 multiplier 3
 ```
                         
 
@@ -79,10 +80,10 @@ interface Ethernet2.10
 - Настраиваем соседские отношения для Spine-1 и Spine-2;
 - Включаем функционал BFD для каждого соседа;
 - Включаем фильтр входящих префиксов по AS-Path;
-- Оптимизировать таймеры:
--- Route Advertisement Timer 'advertisement-interval 0'
--- Keepalive/Hold: 20/60
--- graceful-restart 'restart-tim 120'
+- Оптимизировать таймеры BGP (для всех устройств):
+- Route Advertisement Timer 'advertisement-interval 0'
+- Keepalive/Hold: 20/60
+- graceful-restart 'restart-time 120'
 
   
 ##### 3.2.1 Фрагмент конфигурации route-map + prefix-list:
@@ -113,12 +114,19 @@ router bgp 65003
    router-id 10.1.0.5
    no bgp default ipv4-unicast
    bgp default ipv6-unicast
+   graceful-restart time 120
    maximum-paths 10
    neighbor spine-1 peer group
    neighbor spine-1 bfd
+   neighbor spine-1 timers 20 60
+   neighbor spine-1 graceful-restart
+   neighbor spine-1 advertisment-interval 0
    neighbor spine-1 route-map in-as-path in
    neighbor spine-2 peer group
    neighbor spine-2 bfd
+   neighbor spine-2 timers 20 60
+   neighbor spine-2 graceful-restart
+   neighbor spine-2 advertisment-interval 0
    neighbor spine-2 route-map in-as-path in
    neighbor fe80::5200:ff:fe03:3766%Et2.10 peer group spine-2
    neighbor fe80::5200:ff:fe03:3766%Et2.10 remote-as 65000
@@ -138,15 +146,25 @@ router bgp 65000
    router-id 10.1.0.1
    no bgp default ipv4-unicast
    bgp default ipv6-unicast
+   graceful-restart time 120
    maximum-paths 10
    neighbor leaf-1 peer group
    neighbor leaf-1 bfd
+   neighbor leaf-1 timers 20 60
+   neighbor leaf-1 graceful-restart
+   neighbor leaf-1 advertisment-interval 0
    neighbor leaf-1 route-map in-as-path in
    neighbor leaf-2 peer group
    neighbor leaf-2 bfd
+   neighbor leaf-2 timers 20 60
+   neighbor leaf-2 graceful-restart
+   neighbor leaf-2 advertisment-interval 0
    neighbor leaf-2 route-map in-as-path in
    neighbor leaf-3 peer group
    neighbor leaf-3 bfd
+   neighbor leaf-3 timers 20 60
+   neighbor leaf-3 graceful-restart
+   neighbor leaf-3 advertisment-interval 0
    neighbor leaf-3 route-map in-as-path in
    neighbor fe80::5200:ff:fe15:f4e8%Et3.10 peer group leaf-3
    neighbor fe80::5200:ff:fe15:f4e8%Et3.10 remote-as 65003
