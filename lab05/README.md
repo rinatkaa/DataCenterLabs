@@ -105,7 +105,7 @@ router bgp 65003
       redistribute connected route-map rc6-map
 ```
 
-##### 3.3 Настроить тунельный интерфейс VTEP:
+##### 3.4 Настроить тунельный интерфейс VTEP:
 ```
 interface Vxlan1
    vxlan source-interface Loopback1
@@ -128,7 +128,8 @@ Neighbor Status Codes: m - Under maintenance
 ```
 
 - убедиться в наличии соседских отношений для evpn:
-  ```
+
+```
   swle-dc01-03#sh bgp ev summary
 BGP summary information for VRF default
 Router identifier 10.1.0.5, local AS number 65003
@@ -136,7 +137,7 @@ Neighbor Status Codes: m - Under maintenance
   Neighbor                       V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
   fe80::5200:ff:fe03:3766%Et2.10 4 65000          14520     14517    0    0 22:04:32 Estab   2      2
   fe80::5200:ff:fed5:5dc0%Et1.10 4 65000          14510     14516    0    0 22:05:33 Estab   2      2
-  ```
+```
 
 - Проверить состояние туннельного интерфейса, убедиться в корректности source interface и наличии vni для vlan 10:
 
