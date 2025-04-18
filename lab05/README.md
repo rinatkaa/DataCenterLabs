@@ -112,7 +112,6 @@ interface Vxlan1
    vxlan udp-port 4789
    vxlan encapsulation ipv6
    vxlan vlan 10 vni 10010
-   vxlan flood vtep fd:0:0:4::1 fd:0:0:5::1
 ```
 
 ### 4 Выполнить контроль и проверки
