@@ -115,7 +115,7 @@ interface Vxlan1
    vxlan flood vtep fd:0:0:4::1 fd:0:0:5::1
 ```
 
-### 3.4 Выполнить контроль и проверки
+### 4 Выполнить контроль и проверки
 
 - Убедиться в том, что соседские отношения подняты (проверку выполняем на leaf-3):
 ```
@@ -213,5 +213,3 @@ AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Li
   - [swle-dc1-1](configs/swle-dc01-01.conf)
   - [swle-dc1-2](configs/swle-dc01-02.conf)
   - [swle-dc1-3](configs/swle-dc01-03.conf)
-
-
