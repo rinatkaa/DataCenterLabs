@@ -64,7 +64,7 @@ interface Ethernet4
 
 - активировать сессию для AF: evpn
 - настроить MAC-VRF
-- 
+
 ```
 router bgp 65003
    router-id 10.1.0.5
@@ -159,8 +159,14 @@ Vxlan1 is up, line protocol is up (connected)
   Headend replication flood vtep list is:
     10 fd:0:0:4::1     fd:0:0:3::1     fd:0:0:5::1
   Shared Router MAC is 0000.0000.0000
-```
 
+swle-dc01-02#sh vxlan vni
+VNI to VLAN Mapping for Vxlan1
+VNI         VLAN       Source       Interface       802.1Q Tag
+----------- ---------- ------------ --------------- ----------
+10010       10         static       Ethernet4       untagged
+                                    Vxlan1          10
+```
 
 - Убедиться в наличии маршрутов route-type 2 и 3 (imet и mac-vrf):
 ```
