@@ -48,6 +48,7 @@ VxLAN. L2 VNI
 #### 3.1 Подготовительные работы
 - Выполнена коммутация согласно п.2, настроены линковые интерфейсы и интерфейсы Loopback 1 с ipv6 адресами согласно таблицы №1
 - Настроен eBGP в underlay в adress-family ipv6
+- Включен service routing protocols model multi-agent
   
 #### 3.2 Создать vlan 10 и настроить клиентские интерфейс 
 ```
@@ -168,7 +169,7 @@ VNI         VLAN       Source       Interface       802.1Q Tag
                                     Vxlan1          10
 ```
 
-- Убедиться в наличии маршрутов route-type 2 и 3 (imet и mac-vrf):
+- Убедиться в наличии маршрутов route-type 2 и 3 (imet и mac-vrf) локально:
 ```
 swle-dc01-02#sh bgp evpn next-hop 0.0.0.0
 BGP routing table information for VRF default
@@ -185,24 +186,57 @@ AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Li
                                  -                     -       -       0       i
 ```
 
-- Выполняем проверку связности между хостами, подключенными к leaf-2 и leaf-3:
+- Выполняем проверку наличия route-type 3 (leaf-2):
 ```
-swle-dc01-02#sh bgp neighbors fe80::5200:ff:fed5:5dc0%Et1.10 evpn advertised-rou
+swle-dc01-02#sh bgp evpn route-type imet
 BGP routing table information for VRF default
 Router identifier 10.1.0.4, local AS number 65002
 Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
                     c - Contributing to ECMP, % - Pending BGP convergence
-                    q - Queued for advertisement
 Origin codes: i - IGP, e - EGP, ? - incomplete
 AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
 
           Network                Next Hop              Metric  LocPref Weight  Path
- * >      RD: 10.1.0.4:10 mac-ip 0050.7966.6808
-                                 fd:0:0:4::1           -       100     0       65002 i
+ * >Ec    RD: 10.1.0.3:10 imet fd:0:0:3::1
+                                 fd:0:0:3::1           -       100     0       65000 65001 i
+ *  ec    RD: 10.1.0.3:10 imet fd:0:0:3::1
+                                 fd:0:0:3::1           -       100     0       65000 65001 i
  * >      RD: 10.1.0.4:10 imet fd:0:0:4::1
-                                 fd:0:0:4::1           -       100     0       65002 i
+                                 -                     -       -       0       i
  * >Ec    RD: 10.1.0.5:10 imet fd:0:0:5::1
-                                 fd:0:0:5::1           -       100     0       65002 65000 65003 i
+                                 fd:0:0:5::1           -       100     0       65000 65003 i
+ *  ec    RD: 10.1.0.5:10 imet fd:0:0:5::1
+                                 fd:0:0:5::1           -       100     0       65000 65003 i
+```
+- Выполняем проверку наличия route-type 2 (leaf-2):
+```
+swle-dc01-02#sh bgp evpn route-type mac-ip
+BGP routing table information for VRF default
+Router identifier 10.1.0.4, local AS number 65002
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  LocPref Weight  Path
+ * >Ec    RD: 10.1.0.5:10 mac-ip 0050.7966.6807
+                                 fd:0:0:5::1           -       100     0       65000 65003 i
+ *  ec    RD: 10.1.0.5:10 mac-ip 0050.7966.6807
+                                 fd:0:0:5::1           -       100     0       65000 65003 i
+ * >      RD: 10.1.0.4:10 mac-ip 0050.7966.6808
+
+```
+-  ping между хостами Leaf-2 Leaf-3
+```
+VPCS> ping 192.168.1.3
+
+84 bytes from 192.168.1.3 icmp_seq=1 ttl=64 time=156.186 ms
+84 bytes from 192.168.1.3 icmp_seq=2 ttl=64 time=98.579 ms
+84 bytes from 192.168.1.3 icmp_seq=3 ttl=64 time=81.780 ms
+84 bytes from 192.168.1.3 icmp_seq=4 ttl=64 time=35.749 ms
+84 bytes from 192.168.1.3 icmp_seq=5 ttl=64 time=87.618 ms
+
+VPCS> 
 ```
 
 ### 4 Конфигурации устройств
