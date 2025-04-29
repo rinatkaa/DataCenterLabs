@@ -156,7 +156,7 @@ Neighbor Status Codes: m - Under maintenance
   fe80::5200:ff:fed5:5dc0%Et1.10 4 65000          23964     23961    0    0 00:27:21 Estab   4      4
 ```
 
-- Проверить состояние туннельного интерфейса, убедиться в корректности source interface и наличии vni для vlan 10:
+- Проверить состояние туннельного интерфейса, убедиться в корректности source interface и наличии vni для VPN:
 
 ```
 swle-dc01-03#sh int vxlan 1
