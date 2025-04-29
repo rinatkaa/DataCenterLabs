@@ -240,7 +240,7 @@ Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
  B E      fd:0:0:10::/64 [200/0]
            via VTEP fd:0:0:5::1 VNI 20020 router-mac 50:00:00:15:f4:e8 local-interface Vxlan1
 ```
-```
+
 -  ping между хостом подключенным к Leaf-1 и SVI интерфейсами Leaf-2,3
 ```
 VPCS> ping fd:0:0:10::1
