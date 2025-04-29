@@ -186,10 +186,10 @@ VNI to dynamic VLAN Mapping for Vxlan1
 VNI         VLAN       VRF               Source
 ----------- ---------- ----------------- ------------
 20020       4088       VPN.6500.10       evpn
-
 ```
 
 - Убедиться в наличии маршрутов по evpn fd:0:0:[8,9,10]::/64:
+  
 ```
 swle-dc01-01#sh bgp evpn
 BGP routing table information for VRF default
@@ -217,7 +217,8 @@ AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Li
  * >Ec    RD: 65000:10 ip-prefix fd:0:0:10::/64
                                  fd:0:0:5::1           -       100     0       65000 65003 i
  *  ec    RD: 65000:10 ip-prefix fd:0:0:10::/64
-                                 fd:0:0:5::1           -       100     0       65000 65003 i```
+                                 fd:0:0:5::1           -       100     0       65000 65003 i
+```
 
 - Убедиться в наличии маршрутов в VPN:
 ```
