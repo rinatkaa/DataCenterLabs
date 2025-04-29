@@ -75,9 +75,13 @@ interface Ethernet4
 #### 3.3 Фрагмент конфигурации процесса BGP на устройстве Leaf-2:
 
 - активировать сессию для AF: evpn
-- настроить MAC-VRF
+- настроить IP-VRF
 
 ```
+vrf instance VPN.6500.10
+
+ipv6 unicast-routing vrf VPN.6500.10
+
 router bgp 65003
    router-id 10.1.0.5
    no bgp default ipv4-unicast
@@ -101,11 +105,6 @@ router bgp 65003
    neighbor fe80::5200:ff:fed5:5dc0%Et1.10 peer group spine-1
    neighbor fe80::5200:ff:fed5:5dc0%Et1.10 remote-as 65000
    !
-   vlan 10
-      rd auto
-      route-target both 10:10
-      redistribute learned
-   !
    address-family evpn
       neighbor spine-1 activate
       neighbor spine-2 activate
@@ -115,6 +114,12 @@ router bgp 65003
       neighbor spine-2 activate
       network fd::/61
       redistribute connected route-map rc6-map
+   !
+   vrf VPN.6500.10
+      rd 65000:10
+      route-target import evpn 65000:10
+      route-target export evpn 65000:10
+      redistribute connected
 ```
 
 ##### 3.4 Настроить тунельный интерфейс VTEP:
@@ -123,32 +128,32 @@ interface Vxlan1
    vxlan source-interface Loopback1
    vxlan udp-port 4789
    vxlan encapsulation ipv6
-   vxlan vlan 10 vni 10010
+   vxlan vrf VPN.6500.10 vni 20020
+```
+
+##### 3.5 Настроить SVI интерфейс Vlan10:
+*** ОПЫТНЫМ ПУТЕМ ОБНАРУЖЕНА НЕОБХОДИМОСТЬ ВКЛЮЧЕНИЯ ipv4 на SVI ИНАЧЕ НЕ АНОНСИРУЮТСЯ МАРШРУТЫ ipv6***
+```
+interface Vlan10
+   vrf VPN.6500.10
+   ip address unnumbered Loopback0
+   ipv6 enable
+   ipv6 address fd:0:0:8::1/64
 ```
 
 ### 4 Выполнить контроль и проверки
 
-- Убедиться в том, что соседские BGP отношения подняты (проверку выполняем на leaf-3):
-```
-swle-dc01-03#sh ipv6 bgp summary
-BGP summary information for VRF default
-Router identifier 10.1.0.5, local AS number 65003
-Neighbor Status Codes: m - Under maintenance
-  Neighbor                       V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
-  fe80::5200:ff:fe03:3766%Et2.10 4 65000            104       110    0    0 01:09:46 Estab   3      3
-  fe80::5200:ff:fed5:5dc0%Et1.10 4 65000            127       129    0    0 01:09:45 Estab   3      3
-```
 
 - убедиться в наличии соседских отношений для evpn:
 
 ```
-  swle-dc01-03#sh bgp ev summary
+swle-dc01-01#sh bgp evpn summary
 BGP summary information for VRF default
-Router identifier 10.1.0.5, local AS number 65003
+Router identifier 10.1.0.3, local AS number 65001
 Neighbor Status Codes: m - Under maintenance
   Neighbor                       V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
-  fe80::5200:ff:fe03:3766%Et2.10 4 65000          14520     14517    0    0 22:04:32 Estab   2      2
-  fe80::5200:ff:fed5:5dc0%Et1.10 4 65000          14510     14516    0    0 22:05:33 Estab   2      2
+  fe80::5200:ff:fe03:3766%Et2.10 4 65000          71201     71329    0    0 00:07:39 Estab   4      4
+  fe80::5200:ff:fed5:5dc0%Et1.10 4 65000          23964     23961    0    0 00:27:21 Estab   4      4
 ```
 
 - Проверить состояние туннельного интерфейса, убедиться в корректности source interface и наличии vni для vlan 10:
@@ -172,82 +177,86 @@ Vxlan1 is up, line protocol is up (connected)
     10 fd:0:0:4::1     fd:0:0:3::1     fd:0:0:5::1
   Shared Router MAC is 0000.0000.0000
 
-swle-dc01-02#sh vxlan vni
+swle-dc01-01#sh vxlan vni
 VNI to VLAN Mapping for Vxlan1
-VNI         VLAN       Source       Interface       802.1Q Tag
------------ ---------- ------------ --------------- ----------
-10010       10         static       Ethernet4       untagged
-                                    Vxlan1          10
+VNI       VLAN       Source       Interface       802.1Q Tag
+--------- ---------- ------------ --------------- ----------
+
+VNI to dynamic VLAN Mapping for Vxlan1
+VNI         VLAN       VRF               Source
+----------- ---------- ----------------- ------------
+20020       4088       VPN.6500.10       evpn
+
 ```
 
-- Убедиться в наличии маршрутов route-type 2 и 3 (imet и mac-vrf) локально:
+- Убедиться в наличии маршрутов по evpn fd:0:0:[8,9,10]::/64:
 ```
-swle-dc01-02#sh bgp evpn next-hop 0.0.0.0
+swle-dc01-01#sh bgp evpn
 BGP routing table information for VRF default
-Router identifier 10.1.0.4, local AS number 65002
+Router identifier 10.1.0.3, local AS number 65001
 Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
                     c - Contributing to ECMP, % - Pending BGP convergence
 Origin codes: i - IGP, e - EGP, ? - incomplete
 AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
 
           Network                Next Hop              Metric  LocPref Weight  Path
- * >      RD: 10.1.0.4:10 mac-ip 0050.7966.6808
-                                 -                     -       -       0       i
- * >      RD: 10.1.0.4:10 imet fd:0:0:4::1
-                                 -                     -       -       0       i
-```
-
-- Выполняем проверку наличия route-type 3 (leaf-2):
-```
-swle-dc01-02#sh bgp evpn route-type imet
-BGP routing table information for VRF default
-Router identifier 10.1.0.4, local AS number 65002
-Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
-                    c - Contributing to ECMP, % - Pending BGP convergence
-Origin codes: i - IGP, e - EGP, ? - incomplete
-AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
-
-          Network                Next Hop              Metric  LocPref Weight  Path
- * >Ec    RD: 10.1.0.3:10 imet fd:0:0:3::1
-                                 fd:0:0:3::1           -       100     0       65000 65001 i
- *  ec    RD: 10.1.0.3:10 imet fd:0:0:3::1
-                                 fd:0:0:3::1           -       100     0       65000 65001 i
- * >      RD: 10.1.0.4:10 imet fd:0:0:4::1
-                                 -                     -       -       0       i
+ * >Ec    RD: 10.1.0.4:10 imet fd:0:0:4::1
+                                 fd:0:0:4::1           -       100     0       65000 65002 i
+ *  ec    RD: 10.1.0.4:10 imet fd:0:0:4::1
+                                 fd:0:0:4::1           -       100     0       65000 65002 i
  * >Ec    RD: 10.1.0.5:10 imet fd:0:0:5::1
                                  fd:0:0:5::1           -       100     0       65000 65003 i
  *  ec    RD: 10.1.0.5:10 imet fd:0:0:5::1
                                  fd:0:0:5::1           -       100     0       65000 65003 i
-```
-- Выполняем проверку наличия route-type 2 (leaf-2):
-```
-swle-dc01-02#sh bgp evpn route-type mac-ip
-BGP routing table information for VRF default
-Router identifier 10.1.0.4, local AS number 65002
-Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
-                    c - Contributing to ECMP, % - Pending BGP convergence
-Origin codes: i - IGP, e - EGP, ? - incomplete
-AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
-
-          Network                Next Hop              Metric  LocPref Weight  Path
- * >Ec    RD: 10.1.0.5:10 mac-ip 0050.7966.6807
+ * >      RD: 65000:10 ip-prefix fd:0:0:8::/64
+                                 -                     -       -       0       i
+ * >Ec    RD: 65000:10 ip-prefix fd:0:0:9::/64
+                                 fd:0:0:4::1           -       100     0       65000 65002 i
+ *  ec    RD: 65000:10 ip-prefix fd:0:0:9::/64
+                                 fd:0:0:4::1           -       100     0       65000 65002 i
+ * >Ec    RD: 65000:10 ip-prefix fd:0:0:10::/64
                                  fd:0:0:5::1           -       100     0       65000 65003 i
- *  ec    RD: 10.1.0.5:10 mac-ip 0050.7966.6807
-                                 fd:0:0:5::1           -       100     0       65000 65003 i
- * >      RD: 10.1.0.4:10 mac-ip 0050.7966.6808
+ *  ec    RD: 65000:10 ip-prefix fd:0:0:10::/64
+                                 fd:0:0:5::1           -       100     0       65000 65003 i```
 
+- Убедиться в наличии маршрутов в VPN:
 ```
--  ping между хостами Leaf-2 Leaf-3
+swle-dc01-01#sh ipv6 route vrf VPN.6500.10
+
+VRF: VPN.6500.10
+Displaying 3 of 7 IPv6 routing table entries
+Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
+       B - Other BGP Routes, A B - BGP Aggregate, R - RIP,
+       I L1 - IS-IS level 1, I L2 - IS-IS level 2, DH - DHCP,
+       NG - Nexthop Group Static Route, M - Martian,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       RC - Route Cache Route
+
+ C        fd:0:0:8::/64 [0/0]
+           via Vlan10, directly connected
+ B E      fd:0:0:9::/64 [200/0]
+           via VTEP fd:0:0:4::1 VNI 20020 router-mac 50:00:00:cb:38:c2 local-interface Vxlan1
+ B E      fd:0:0:10::/64 [200/0]
+           via VTEP fd:0:0:5::1 VNI 20020 router-mac 50:00:00:15:f4:e8 local-interface Vxlan1
 ```
-VPCS> ping 192.168.1.3
+```
+-  ping между хостом подключенным к Leaf-1 и SVI интерфейсами Leaf-2,3
+```
+VPCS> ping fd:0:0:10::1
 
-84 bytes from 192.168.1.3 icmp_seq=1 ttl=64 time=156.186 ms
-84 bytes from 192.168.1.3 icmp_seq=2 ttl=64 time=98.579 ms
-84 bytes from 192.168.1.3 icmp_seq=3 ttl=64 time=81.780 ms
-84 bytes from 192.168.1.3 icmp_seq=4 ttl=64 time=35.749 ms
-84 bytes from 192.168.1.3 icmp_seq=5 ttl=64 time=87.618 ms
+fd:0:0:10::1 icmp6_seq=1 ttl=63 time=66.645 ms
+fd:0:0:10::1 icmp6_seq=2 ttl=63 time=119.882 ms
+fd:0:0:10::1 icmp6_seq=3 ttl=63 time=47.714 ms
+fd:0:0:10::1 icmp6_seq=4 ttl=63 time=38.481 ms
+fd:0:0:10::1 icmp6_seq=5 ttl=63 time=50.378 ms
 
-VPCS> 
+VPCS> ping fd:0:0:9::1 
+
+fd:0:0:9::1 icmp6_seq=1 ttl=63 time=63.145 ms
+fd:0:0:9::1 icmp6_seq=2 ttl=63 time=55.880 ms
+fd:0:0:9::1 icmp6_seq=3 ttl=63 time=26.302 ms
+fd:0:0:9::1 icmp6_seq=4 ttl=63 time=33.210 ms
+fd:0:0:9::1 icmp6_seq=5 ttl=63 time=34.023 ms
 ```
 
 ### 4 Конфигурации устройств
