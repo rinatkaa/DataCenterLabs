@@ -43,12 +43,21 @@ VxLAN. L3VNI
 | Leaf 2 | swle-dc01-02 |    10.1.0.4 | fd:0:0:4::1/64 | 65002 |
 | Leaf 3 | swle-dc01-03 |    10.1.0.5 | fd:0:0:5::1/64 | 65003 |
 
-#### Таблица №1 Настройки интерфейсов клиентов
+#### Таблица №2 Настройки интерфейсов клиентов
 | Коммутатор  | IPv4 адрес |  IPv4 шлюза |  IPv6 router |  IPv4 интерфейса хоста |
 | :------------ |:---------------:| -----:| ---------------:| -----:| 
 | Host-1 | 192.168.1.1/24 |     192.168.1.254/24 | fd:0:0:8::1/64 |     SLAAC | 
 | Host-2 | 192.168.2.1/24 |    192.168.2.254/24 | fd:0:0:9::1/64 |    SLAAC | 
 | Host-3 | 192.168.3.1/24 |    192.168.3.254/24 | fd:0:0:10::1/64 |   SLAAC |
+
+#### Таблица №3 Настройки VRF
+| Коммутатор  | VRF |  RD |  RT Both |
+| :------------ |:---------------:| -----:| ---------------:|
+| swle-dc01-01 (Leaf-1)| VPN.6500.10 |     65000:10 | 65000:10 |
+| swle-dc01-02 (Leaf-2) | VPN.6500.10 |    65000:20 | 65000:10 |
+| swle-dc01-03 (Leaf-3) | VPN.6500.10 |    65000:30 | 65000:10 |
+
+***Route Target выбраны одинаковыми для упрощения настройки импорта маршрутов*** 
 
 
   ![Схема](net06.png)
@@ -75,8 +84,12 @@ interface Ethernet4
 #### 3.3 Фрагмент конфигурации процесса BGP на устройстве Leaf-2:
 
 - активировать сессию для AF: evpn
-- настроить IP-VRF
+- настроить IP-VRF для каждого leaf:
+  VPN.6500.10 RD 65000:10, RT: 65000:10
+  VPN.6500.20 RD 65000:20  RT: 65000:10
+  VPN.6500.30 RD 65000:30 RT: 65000:10
 
+- фрагмент конфигурации leaf-1:
 ```
 vrf instance VPN.6500.10
 
@@ -128,11 +141,14 @@ interface Vxlan1
    vxlan source-interface Loopback1
    vxlan udp-port 4789
    vxlan encapsulation ipv6
-   vxlan vrf VPN.6500.10 vni 20020
+   vxlan vrf VPN.6500.10 vni 10010
+   vxlan vrf VPN.6500.20 vni 30030
+   vxlan vrf VPN.6500.30 vni 30030
 ```
 
 ##### 3.5 Настроить SVI интерфейс Vlan10:
-*** ОПЫТНЫМ ПУТЕМ ОБНАРУЖЕНА НЕОБХОДИМОСТЬ ВКЛЮЧЕНИЯ ipv4 на SVI ИНАЧЕ НЕ АНОНСИРУЮТСЯ МАРШРУТЫ ipv6***
+
+***ОПЫТНЫМ ПУТЕМ ОБНАРУЖЕНА НЕОБХОДИМОСТЬ ВКЛЮЧЕНИЯ ipv4 на SVI ИНАЧЕ НЕ АНОНСИРУЮТСЯ МАРШРУТЫ ipv6***
 ```
 interface Vlan10
    vrf VPN.6500.10
@@ -159,22 +175,24 @@ Neighbor Status Codes: m - Under maintenance
 - Проверить состояние туннельного интерфейса, убедиться в корректности source interface и наличии vni для VPN:
 
 ```
-swle-dc01-03#sh int vxlan 1
+swle-dc01-01#sh int vxlan 1
 Vxlan1 is up, line protocol is up (connected)
   Hardware is Vxlan
-  Source interface is Loopback1 and is active with fd:0:0:5::1
+  Source interface is Loopback1 and is active with fd:0:0:3::1
   Listening on UDP port 4789
   Vxlan Encapsulation is IPv6
-  Replication/Flood Mode is headend with Flood List Source: EVPN
-  Remote MAC learning via EVPN
+  Replication/Flood Mode is headend with Flood List Source: CLI
+  Remote MAC learning is disabled
   VNI mapping to VLANs
   Static VLAN to VNI mapping is
-    [10, 10010]
+  Dynamic VLAN to VNI mapping for 'evpn' is
+    [4068, 30030]     [4069, 10010]     [4088, 20020]
   Note: All Dynamic VLANs used by VCS are internal VLANs.
         Use 'show vxlan vni' for details.
-  Static VRF to VNI mapping is not configured
-  Headend replication flood vtep list is:
-    10 fd:0:0:4::1     fd:0:0:3::1     fd:0:0:5::1
+  Static VRF to VNI mapping is
+   [VPN.6500.10, 10010]
+   [VPN.6500.20, 20020]
+   [VPN.6500.30, 30030]
   Shared Router MAC is 0000.0000.0000
 
 swle-dc01-01#sh vxlan vni
@@ -185,10 +203,12 @@ VNI       VLAN       Source       Interface       802.1Q Tag
 VNI to dynamic VLAN Mapping for Vxlan1
 VNI         VLAN       VRF               Source
 ----------- ---------- ----------------- ------------
-20020       4088       VPN.6500.10       evpn
+10010       4069       VPN.6500.10       evpn
+20020       4088       VPN.6500.20       evpn
+30030       4068       VPN.6500.30       evpn
 ```
 
-- Убедиться в наличии маршрутов по evpn fd:0:0:[8,9,10]::/64:
+- Убедиться в наличии маршрутов 'route-type 5' по evpn fd:0:0:[8,9,10]::/64, подтверждаем работу ECMP:
   
 ```
 swle-dc01-01#sh bgp evpn
@@ -200,24 +220,35 @@ Origin codes: i - IGP, e - EGP, ? - incomplete
 AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
 
           Network                Next Hop              Metric  LocPref Weight  Path
- * >Ec    RD: 10.1.0.4:10 imet fd:0:0:4::1
-                                 fd:0:0:4::1           -       100     0       65000 65002 i
- *  ec    RD: 10.1.0.4:10 imet fd:0:0:4::1
-                                 fd:0:0:4::1           -       100     0       65000 65002 i
- * >Ec    RD: 10.1.0.5:10 imet fd:0:0:5::1
-                                 fd:0:0:5::1           -       100     0       65000 65003 i
- *  ec    RD: 10.1.0.5:10 imet fd:0:0:5::1
-                                 fd:0:0:5::1           -       100     0       65000 65003 i
  * >      RD: 65000:10 ip-prefix fd:0:0:8::/64
                                  -                     -       -       0       i
- * >Ec    RD: 65000:10 ip-prefix fd:0:0:9::/64
+ * >Ec    RD: 65000:20 ip-prefix fd:0:0:9::/64
                                  fd:0:0:4::1           -       100     0       65000 65002 i
- *  ec    RD: 65000:10 ip-prefix fd:0:0:9::/64
+ *  ec    RD: 65000:20 ip-prefix fd:0:0:9::/64
                                  fd:0:0:4::1           -       100     0       65000 65002 i
- * >Ec    RD: 65000:10 ip-prefix fd:0:0:10::/64
+ * >Ec    RD: 65000:30 ip-prefix fd:0:0:10::/64
                                  fd:0:0:5::1           -       100     0       65000 65003 i
- *  ec    RD: 65000:10 ip-prefix fd:0:0:10::/64
+ *  ec    RD: 65000:30 ip-prefix fd:0:0:10::/64
                                  fd:0:0:5::1           -       100     0       65000 65003 i
+```
+- На примере префикса с leaf-2 для vni 20020 проверяем наличие корректного маршрута в BGP таблице: 
+  
+```
+swle-dc01-01#sh bgp evpn route-type ip-prefix ipv6 vni 20020 detail
+BGP routing table information for VRF default
+Router identifier 10.1.0.3, local AS number 65001
+BGP routing table entry for ip-prefix fd:0:0:9::/64, Route Distinguisher: 65000:20
+ Paths: 2 available
+  65000 65002
+    fd:0:0:4::1 from fe80::5200:ff:fed5:5dc0%Et1.10 (10.1.0.1)
+      Origin IGP, metric -, localpref 100, weight 0, tag 0, valid, external, ECMP head, ECMP, best, ECMP contributor
+      Extended Community: Route-Target-AS:65000:10 TunnelEncap:tunnelTypeVxlan EvpnRouterMac:50:00:00:cb:38:c2
+      VNI: 20020
+  65000 65002
+    fd:0:0:4::1 from fe80::5200:ff:fe03:3766%Et2.10 (10.1.0.2)
+      Origin IGP, metric -, localpref 100, weight 0, tag 0, valid, external, ECMP, ECMP contributor
+      Extended Community: Route-Target-AS:65000:10 TunnelEncap:tunnelTypeVxlan EvpnRouterMac:50:00:00:cb:38:c2
+      VNI: 20020
 ```
 
 - Убедиться в наличии маршрутов в VPN:
@@ -238,26 +269,33 @@ Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
  B E      fd:0:0:9::/64 [200/0]
            via VTEP fd:0:0:4::1 VNI 20020 router-mac 50:00:00:cb:38:c2 local-interface Vxlan1
  B E      fd:0:0:10::/64 [200/0]
-           via VTEP fd:0:0:5::1 VNI 20020 router-mac 50:00:00:15:f4:e8 local-interface Vxlan1
+           via VTEP fd:0:0:5::1 VNI 30030 router-mac 50:00:00:15:f4:e8 local-interface Vxlan1
 ```
 
 -  ping между хостом подключенным к Leaf-1 и SVI интерфейсами Leaf-2,3
 ```
-VPCS> ping fd:0:0:10::1
+swle-dc01-01#ping vrf VPN.6500.10 fd:0:0:9::1
+PING fd:0:0:9::1(fd:0:0:9::1) 52 data bytes
+60 bytes from fd:0:0:9::1: icmp_seq=1 ttl=64 time=88.1 ms
+60 bytes from fd:0:0:9::1: icmp_seq=2 ttl=64 time=86.7 ms
+60 bytes from fd:0:0:9::1: icmp_seq=3 ttl=64 time=94.8 ms
+60 bytes from fd:0:0:9::1: icmp_seq=4 ttl=64 time=97.5 ms
+60 bytes from fd:0:0:9::1: icmp_seq=5 ttl=64 time=98.4 ms
 
-fd:0:0:10::1 icmp6_seq=1 ttl=63 time=66.645 ms
-fd:0:0:10::1 icmp6_seq=2 ttl=63 time=119.882 ms
-fd:0:0:10::1 icmp6_seq=3 ttl=63 time=47.714 ms
-fd:0:0:10::1 icmp6_seq=4 ttl=63 time=38.481 ms
-fd:0:0:10::1 icmp6_seq=5 ttl=63 time=50.378 ms
+--- fd:0:0:9::1 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 48ms
+rtt min/avg/max/mdev = 86.799/93.155/98.412/4.806 ms, pipe 5, ipg/ewma 12.194/90.992 ms
+swle-dc01-01#ping vrf VPN.6500.10 fd:0:0:10::1
+PING fd:0:0:10::1(fd:0:0:10::1) 52 data bytes
+60 bytes from fd:0:0:10::1: icmp_seq=1 ttl=64 time=45.4 ms
+60 bytes from fd:0:0:10::1: icmp_seq=2 ttl=64 time=49.1 ms
+60 bytes from fd:0:0:10::1: icmp_seq=3 ttl=64 time=55.1 ms
+60 bytes from fd:0:0:10::1: icmp_seq=4 ttl=64 time=59.0 ms
+60 bytes from fd:0:0:10::1: icmp_seq=5 ttl=64 time=46.3 ms
 
-VPCS> ping fd:0:0:9::1 
-
-fd:0:0:9::1 icmp6_seq=1 ttl=63 time=63.145 ms
-fd:0:0:9::1 icmp6_seq=2 ttl=63 time=55.880 ms
-fd:0:0:9::1 icmp6_seq=3 ttl=63 time=26.302 ms
-fd:0:0:9::1 icmp6_seq=4 ttl=63 time=33.210 ms
-fd:0:0:9::1 icmp6_seq=5 ttl=63 time=34.023 ms
+--- fd:0:0:10::1 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 88ms
+rtt min/avg/max/mdev = 45.408/51.014/59.019/5.248 ms, pipe 4, ipg/ewma 22.001/48.259 ms
 ```
 
 ### 4 Конфигурации устройств
