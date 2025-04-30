@@ -304,6 +304,6 @@ rtt min/avg/max/mdev = 45.408/51.014/59.019/5.248 ms, pipe 4, ipg/ewma 22.001/48
   - [swsp-dc1-1](configs/swsp-dc01-01.conf)
   - [swsp-dc1-2](configs/swsp-dc01-02.conf)
 - Leaf коммутаторы:
-  - [swle-dc1-1](configs/swle-dc01-01.conf)
-  - [swle-dc1-2](configs/swle-dc01-02.conf)
-  - [swle-dc1-3](configs/swle-dc01-03.conf)
+  - [swle-dc1-1](configs/swle-dc01-01.1.conf)
+  - [swle-dc1-2](configs/swle-dc01-02.1.conf)
+  - [swle-dc1-3](configs/swle-dc01-03.1.conf)
