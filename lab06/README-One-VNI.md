@@ -268,17 +268,17 @@ fd:0:0:9::1 icmp6_seq=5 ttl=63 time=34.023 ms
 - настраиваем две сети на двух leaf в клиентском vlan 10:
 | Leaf-1  | Leaf-2  |
 | :------------ |:---------------:|
-| ```fd:0:0:9::1 icmp6_seq=1 ttl=63 time=63.145 ms
+| fd:0:0:9::1 icmp6_seq=1 ttl=63 time=63.145 ms
 fd:0:0:9::1 icmp6_seq=2 ttl=63 time=55.880 ms
 fd:0:0:9::1 icmp6_seq=3 ttl=63 time=26.302 ms
 fd:0:0:9::1 icmp6_seq=4 ttl=63 time=33.210 ms
 fd:0:0:9::1 icmp6_seq=5 ttl=63 time=34.023 ms
-```     | ```fd:0:0:9::1 icmp6_seq=1 ttl=63 time=63.145 ms
+|fd:0:0:9::1 icmp6_seq=1 ttl=63 time=63.145 ms
 fd:0:0:9::1 icmp6_seq=2 ttl=63 time=55.880 ms
 fd:0:0:9::1 icmp6_seq=3 ttl=63 time=26.302 ms
 fd:0:0:9::1 icmp6_seq=4 ttl=63 time=33.210 ms
 fd:0:0:9::1 icmp6_seq=5 ttl=63 time=34.023 ms
-``` |
+|
 
 
 
