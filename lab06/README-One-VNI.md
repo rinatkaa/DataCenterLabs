@@ -261,18 +261,150 @@ fd:0:0:9::1 icmp6_seq=5 ttl=63 time=34.023 ms
 ```
 
 -------------------------------------------------------------------------------------------------------------------------------------
-Все, что выше - настройка с использованием только l3, ниже вариант настроки
+Все, что выше - настройка с использованием только ip-prefix, ниже вариант настройки Symmetric IRB
 ------------------------------------------------------------------------------------------------------------------------------------
-## 4 Настройка Symmetric IRB с передачей двух записей в MAC-VRF 
+## 4 Элементы конфигурации для Leaf-1:
+### 4.1 Настройка SVI + порт доступа:
+```
+swle-dc01-01#sh run int vl10
+interface Vlan10
+   vrf VPN.6500.10
+   ip address unnumbered Loopback0
+   ipv6 enable
+   ipv6 address fd:0:0:8::1/64
 
-- настраиваем две сети на двух leaf в клиентском vlan 10:
-| Leaf-1  | Leaf-2  |
-| :------------ |-----------------:|
-| fd:0:0:9::1 icmp6_seq=1 ttl=63 time=63.145 fd:0:0:9::1 icmp6_seq=5 ttl=63 time=34.023 ms|fd:0:0:9::1 icmp6_seq=1 ttl=63 time=63.145 ms|
+interface Ethernet4
+   description - Client Host 1
+   switchport access vlan 10
+   spanning-tree portfast
+```
 
+### 4.2 Настройка BGP: vlan-aware (Symmetrica IRB на устройствах Arista) для vlan 10, vrf VPN.6500.10
+```
+router bgp 65001
+   router-id 10.1.0.3
+   bgp default ipv6-unicast
+   maximum-paths 10
+   neighbor spine-1 peer group
+   neighbor spine-1 bfd
+   neighbor spine-1 route-map in-as-path in
+   neighbor spine-1 send-community extended
+   neighbor spine-2 peer group
+   neighbor spine-2 bfd
+   neighbor spine-2 route-map in-as-path in
+   neighbor spine-2 send-community extended
+   neighbor fe80::5200:ff:fe03:3766%Et2.10 peer group spine-2
+   neighbor fe80::5200:ff:fe03:3766%Et2.10 remote-as 65000
+   neighbor fe80::5200:ff:fed5:5dc0%Et1.10 peer group spine-1
+   neighbor fe80::5200:ff:fed5:5dc0%Et1.10 remote-as 65000
+   !
+   vlan-aware-bundle l3vnilab
+      rd 10.1.0.3:101
+      route-target both 101:101
+      redistribute learned
+      vlan 10
+   !
+***
+   !
+   vrf VPN.6500.10
+      rd 65000:10
+      route-target import evpn 65000:10
+      route-target export evpn 65000:10
+```
+### 4.3 Настройка Vxlan
+```
+interface Vxlan1
+   vxlan source-interface Loopback1
+   vxlan udp-port 4789
+   vxlan encapsulation ipv6
+   vxlan vlan 10 vni 10101
+   vxlan vrf VPN.6500.10 vni 10010
+```
 
+### 4.4  Исходное положение (mac чистые, не содержат записи mac клиентских хостов):
+```
+swle-dc01-01#sh bgp evpn
+BGP routing table information for VRF default
+Router identifier 10.1.0.3, local AS number 65001
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
 
-### 5 Конфигурации устройств
+          Network                Next Hop              Metric  LocPref Weight  Path
+ * >      RD: 10.1.0.3:101 imet 10101 fd:0:0:3::1
+                                 -                     -       -       0       i
+ * >Ec    RD: 10.1.0.4:101 imet 10101 fd:0:0:4::1
+                                 fd:0:0:4::1           -       100     0       65000 65002 i
+ *  ec    RD: 10.1.0.4:101 imet 10101 fd:0:0:4::1
+                                 fd:0:0:4::1           -       100     0       65000 65002 i
+ * >Ec    RD: 10.1.0.5:101 imet 10101 fd:0:0:5::1
+                                 fd:0:0:5::1           -       100     0       65000 65003 i
+ *  ec    RD: 10.1.0.5:101 imet 10101 fd:0:0:5::1
+                                 fd:0:0:5::1           -       100     0       65000 65003 i
+```
+
+### В таблице маршрутизации для VPN.6500.10 присутствует только connected маршрут (redistribute static выключен для этого VRF на всех leaf):
+```
+swle-dc01-01#sh ipv6 route vrf VPN.6500.10
+
+VRF: VPN.6500.10
+Displaying 1 of 5 IPv6 routing table entries
+Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
+       B - Other BGP Routes, A B - BGP Aggregate, R - RIP,
+       I L1 - IS-IS level 1, I L2 - IS-IS level 2, DH - DHCP,
+       NG - Nexthop Group Static Route, M - Martian,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       RC - Route Cache Route
+
+ C        fd:0:0:8::/64 [0/0]
+           via Vlan10, directly connected
+```
+### 4.5  Запускаем пинги между клиентскими хостами Leaf-1 и Leaf-2, появляются mac в локальных таблицах MAC и соответствующие записи в BGP EVPN:
+
+### Видно, что с BGP Update прилетает две записи (дважды из-за ECMP) первая содержит MAC, вторая с MAC - IP (ARP) 
+```
+swle-dc01-01#sh bgp evpn
+BGP routing table information for VRF default
+Router identifier 10.1.0.3, local AS number 65001
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  LocPref Weight  Path
+ * >      RD: 10.1.0.3:101 mac-ip 10101 0050.7966.6806 fd::8:2050:79ff:fe66:6806
+                                 -                     -       -       0       i
+ * >Ec    RD: 10.1.0.4:101 mac-ip 10101 0050.7966.6808
+                                 fd:0:0:4::1           -       100     0       65000 65002 i
+ *  ec    RD: 10.1.0.4:101 mac-ip 10101 0050.7966.6808
+                                 fd:0:0:4::1           -       100     0       65000 65002 i
+ * >Ec    RD: 10.1.0.4:101 mac-ip 10101 0050.7966.6808 fd::9:2050:79ff:fe66:6808
+                                 fd:0:0:4::1           -       100     0       65000 65002 i
+```
+
+### А в таблице маршрутизации появляется более точная запись для хостов, на примере вывода на Leaf-1:
+```
+swle-dc01-01#sh ipv6 route vrf VPN.6500.10
+
+VRF: VPN.6500.10
+Displaying 2 of 6 IPv6 routing table entries
+Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
+       B - Other BGP Routes, A B - BGP Aggregate, R - RIP,
+       I L1 - IS-IS level 1, I L2 - IS-IS level 2, DH - DHCP,
+       NG - Nexthop Group Static Route, M - Martian,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       RC - Route Cache Route
+
+ C        fd:0:0:8::/64 [0/0]
+           via Vlan10, directly connected
+ B E      fd::9:2050:79ff:fe66:6808/128 [200/0]
+           via VTEP fd:0:0:4::1 VNI 10010 router-mac 50:00:00:cb:38:c2 local-interface Vxlan1
+```
+
+### Если хотим иметь доступность до коннектед сетей придется в конфигурации VPN.6500.10 включать 'redistribute static'
+
+### 5 Конфигурации устройств (для l3 only настройки)
 - Spine коммутаторы:
   - [swsp-dc1-1](configs/swsp-dc01-01.conf)
   - [swsp-dc1-2](configs/swsp-dc01-02.conf)
