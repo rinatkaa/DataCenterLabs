@@ -180,6 +180,32 @@ fd:0:0:8::1 icmp6_seq=3 ttl=63 time=56.361 ms
 fd:0:0:8::1 icmp6_seq=4 ttl=63 time=67.949 ms
 fd:0:0:8::1 icmp6_seq=5 ttl=63 time=57.554 ms
 ```
+***при этом на коммутаторе Leaf-3 пропадают evpn маршруты типом 1 и 4***
+
+- при восстановлении физического линка (участника LACP), появляются необходимые для работы MultiHome префиксы, проверка на Leaf-3:
+```
+swle-dc01-03#sh bgp evpn next-hop fd:0:0:4::1 esi 0000:8888:8888:8888:8888
+BGP routing table information for VRF default
+Router identifier 10.1.0.5, local AS number 65003
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  LocPref Weight  Path
+ * >Ec    RD: 10.1.0.4:1 auto-discovery 0000:8888:8888:8888:8888
+                                 fd:0:0:4::1           -       100     0       65000 65002 i
+ *  ec    RD: 10.1.0.4:1 auto-discovery 0000:8888:8888:8888:8888
+                                 fd:0:0:4::1           -       100     0       65000 65002 i
+ * >Ec    RD: 10.1.0.4:101 mac-ip 10100 0050.7966.6808 fd::11:2050:79ff:fe66:6808
+                                 fd:0:0:4::1           -       100     0       65000 65002 i
+ *  ec    RD: 10.1.0.4:101 mac-ip 10100 0050.7966.6808 fd::11:2050:79ff:fe66:6808
+                                 fd:0:0:4::1           -       100     0       65000 65002 i
+ * >Ec    RD: 10.1.0.4:1 ethernet-segment 0000:8888:8888:8888:8888 fd:0:0:4::1
+                                 fd:0:0:4::1           -       100     0       65000 65002 i
+ *  ec    RD: 10.1.0.4:1 ethernet-segment 0000:8888:8888:8888:8888 fd:0:0:4::1
+                                 fd:0:0:4::1           -       100     0       65000 65002 i
+``` 
 
 ### 4 Конфигурации устройств
 - Spine коммутаторы:
