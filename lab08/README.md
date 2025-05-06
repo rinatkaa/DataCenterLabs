@@ -35,12 +35,13 @@
 | Leaf 2 | swle-dc01-02 |    10.1.0.4 | fd:0:0:4::1/64 | 65002 |
 | Leaf 3 | swle-dc01-03 |    10.1.0.5 | fd:0:0:5::1/64 | 65003 |
 
-#### Таблица №2 Настройки интерфейсов клиентов
+#### Таблица №2 Настройки устройств подключенных к фабрике
 | Клиентское устройство  | IPv4 адрес |  IPv4 шлюза |  IPv6 router |  IPv4 интерфейса хоста |
 | :------------: |:---------------:| :-----:| :---------------:| :-----:| 
 | Host-1 | - |     - | fd:0:0:8::1/64 |     SLAAC | 
 | Host-2/LACP | - |    - | fd:0:0:11::1/64 |    SLAAC | 
 | Host-2/LACP | - |    - | fd:0:0:11::1/64 |   SLAAC |
+
 *** Host-2 подключен через клиентский коммутатор с включенной агрегацией аплинков LACP в режиме Active ***
 
 #### Таблица №3 Настройки VRF
@@ -101,111 +102,151 @@ interface Vlan100
    ipv6 address virtual fd:0:0:11::1/64
 ```
 
+### 4 Настройки подключения ASBR-1 к фабрике:
+- линковые интерфейсы к коммутаторам Leaf-2 и Leaf-3:
+```
+interface Ethernet3
+   description - Uplink Leaf-2
+   no switchport
+   ipv6 enable
+   ipv6 address fd:0:0:100::2/64
+!
+interface Ethernet4
+   description - Uplink Leaf-3
+   no switchport
+   ipv6 enable
+   ipv6 address fd:0:0:101::2/64
+```
+
+- статические маршруты подключаемых клиентских сетей:
+```
+ipv6 unicast-routing
+!
+ipv6 route fd:0:0:8::/64 fd:0:0:100::1
+ipv6 route fd:0:0:11::/64 fd:0:0:101::1
+```
+### 4.1 Маршруты и настройки граничных leaf-3 в в VPN.6500.10
+- Настройка линкового интерфейса
+```
+interface Ethernet3
+   description - ASBR-1 2/l3
+   no switchport
+   vrf VPN.6500.10
+   ipv6 enable
+   ipv6 address fd:0:0:101::1/64
+```
+
+- Настройка статических маршрутов fd:0:0:8::/64 VRF VPN.6500.10 и fd:0:0:13::/64 для проверки связности с самим ASBR:
+ 
+```
+ipv6 route vrf VPN.6500.10 fd:0:0:8::/64 fd:0:0:101::2
+ipv6 route vrf VPN.6500.10 fd:0:0:13::/64 fd:0:0:101::2
+```
+
+- Включаем redistribute static для распространения изученных route-type 5:
+```
+ vrf VPN.6500.10
+      rd 65000:10
+      route-target import evpn 65000:10
+      route-target export evpn 65000:10
+      redistribute static
+```
+
+
+### 4.1 Маршруты и настройки граничных leaf-2 в в VPN.6500.20
+
+- линковый интерфейс и маршруты в сторону ASBR для маршрутизации трафика в VPN.6500.10:
+```
+interface Ethernet3
+   description - ASBR-1 1/l3
+   no switchport
+   vrf VPN.6500.20
+   ip address 10.2.2.2/24
+   ipv6 enable
+   ipv6 address fd:0:0:100::1/64
+!
+!
+ipv6 route vrf VPN.6500.20 fd:0:0:11::/64 fd:0:0:100::2
+ipv6 route vrf VPN.6500.20 fd:0:0:13::/64 fd:0:0:100::2
+```
+
+
 ### 4 Выполнить контроль и проверки
 
-
-- Убедиться в наличии префиксов с 'route-type 1,4' по evpn/bgp для соседа Leaf-2, Leaf-3 (вывод на примере  Leaf-2):
+- проверка наличия маршрутов на Leaf-1 'route-type 5', к которому подключен HOST-1 в VPN.6500.10:
 ```
-swle-dc01-02#sh bgp evpn next-hop fd:0:0:5::1
+swle-dc01-01#sh ipv6 route vrf VPN.6500.20
+
+VRF: VPN.6500.20
+Displaying 3 of 7 IPv6 routing table entries
+Codes: C - connected, S - static, K - kernel, O3 - OSPFv3,
+       B - Other BGP Routes, A B - BGP Aggregate, R - RIP,
+       I L1 - IS-IS level 1, I L2 - IS-IS level 2, DH - DHCP,
+       NG - Nexthop Group Static Route, M - Martian,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       RC - Route Cache Route
+
+ C        fd:0:0:8::/64 [0/0]
+           via Vlan10, directly connected
+ B E      fd:0:0:11::/64 [200/0]
+           via VTEP fd:0:0:4::1 VNI 10020 router-mac 50:00:00:cb:38:c2 local-interface Vxlan1
+ B E      fd:0:0:13::/64 [200/0]
+           via VTEP fd:0:0:4::1 VNI 10020 router-mac 50:00:00:cb:38:c2 local-interface Vxlan1
+
+swle-dc01-01#sh bgp evpn route-type ip-prefix ipv6 vni 10020
 BGP routing table information for VRF default
-Router identifier 10.1.0.4, local AS number 65002
+Router identifier 10.1.0.3, local AS number 65001
 Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
                     c - Contributing to ECMP, % - Pending BGP convergence
 Origin codes: i - IGP, e - EGP, ? - incomplete
 AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
 
           Network                Next Hop              Metric  LocPref Weight  Path
- * >Ec    RD: 10.1.0.5:101 auto-discovery 10100 0000:8888:8888:8888:8888
-                                 fd:0:0:5::1           -       100     0       65000 65003 i
- *  ec    RD: 10.1.0.5:101 auto-discovery 10100 0000:8888:8888:8888:8888
-                                 fd:0:0:5::1           -       100     0       65000 65003 i
- * >Ec    RD: 10.1.0.5:1 auto-discovery 0000:8888:8888:8888:8888
-                                 fd:0:0:5::1           -       100     0       65000 65003 i
- *  ec    RD: 10.1.0.5:1 auto-discovery 0000:8888:8888:8888:8888
-                                 fd:0:0:5::1           -       100     0       65000 65003 i
- * >Ec    RD: 10.1.0.5:101 imet 10100 fd:0:0:5::1
-                                 fd:0:0:5::1           -       100     0       65000 65003 i
- *  ec    RD: 10.1.0.5:101 imet 10100 fd:0:0:5::1
-                                 fd:0:0:5::1           -       100     0       65000 65003 i
- * >Ec    RD: 10.1.0.5:101 imet 10101 fd:0:0:5::1
-                                 fd:0:0:5::1           -       100     0       65000 65003 i
- *  ec    RD: 10.1.0.5:101 imet 10101 fd:0:0:5::1
-                                 fd:0:0:5::1           -       100     0       65000 65003 i
- * >Ec    RD: 10.1.0.5:1 ethernet-segment 0000:8888:8888:8888:8888 fd:0:0:5::1
-                                 fd:0:0:5::1           -       100     0       65000 65003 i
- *  ec    RD: 10.1.0.5:1 ethernet-segment 0000:8888:8888:8888:8888 fd:0:0:5::1
-                                 fd:0:0:5::1           -       100     0       65000 65003 i
+ * >      RD: 65000:20 ip-prefix fd:0:0:8::/64
+                                 -                     -       -       0       i
+ * >Ec    RD: 65000:20 ip-prefix fd:0:0:11::/64
+                                 fd:0:0:4::1           -       100     0       65000 65002 ?
+ *  ec    RD: 65000:20 ip-prefix fd:0:0:11::/64
+                                 fd:0:0:4::1           -       100     0       65000 65002 ?
+ * >Ec    RD: 65000:20 ip-prefix fd:0:0:13::/64
+                                 fd:0:0:4::1           -       100     0       65000 65002 ?
+ *  ec    RD: 65000:20 ip-prefix fd:0:0:13::/64
+                                 fd:0:0:4::1           -       100     0       65000 65002 ?
 ```
 
-- Проверка состояния Port-channel1 на Leaf-2: 
-  
+- проверка связности по icmp между Host-1 и Host-2, находящимися в разных VPN:
+
 ```
-swle-dc01-02#sh int po1
-Port-Channel1 is up, line protocol is up (connected)
-  Hardware is Port-Channel, address is 5000.0002.0008
-  Description: - Client SW
+VPCS> ping fd::11:2050:79ff:fe66:6808
+
+fd::11:2050:79ff:fe66:6808 icmp6_seq=1 ttl=56 time=642.785 ms
+fd::11:2050:79ff:fe66:6808 icmp6_seq=2 ttl=56 time=158.211 ms
+fd::11:2050:79ff:fe66:6808 icmp6_seq=3 ttl=56 time=95.977 ms
+fd::11:2050:79ff:fe66:6808 icmp6_seq=4 ttl=56 time=80.859 ms
+fd::11:2050:79ff:fe66:6808 icmp6_seq=5 ttl=56 time=68.991 ms
+```
+- проверка связности между HOST-1 и интерфейсами Leaf-3 в "чужом" VPN.6500.20:
+```
+VPCS> ping fd:0:0:11::1
+
+fd:0:0:11::1 icmp6_seq=1 ttl=61 time=82.809 ms
+fd:0:0:11::1 icmp6_seq=2 ttl=61 time=156.930 ms
+fd:0:0:11::1 icmp6_seq=3 ttl=61 time=87.325 ms
+fd:0:0:11::1 icmp6_seq=4 ttl=61 time=99.523 ms
+fd:0:0:11::1 icmp6_seq=5 ttl=61 time=54.680 ms
 ```
 
-- Выполнить проверку - ping с Host-2 до соседнего коммутатора fd:0:0:8::1/64, отключать поочередно физические порты uplink на коммутаторе доступа sw-client (eth 8, eth 7):
-  
+- проверка связности между HOST-1 и интерфейсом Loopback ASBR-1:
 ```
-client-sw#show port-channel 1 detailed 
-Port Channel Port-Channel1 (Fallback State: Unconfigured):
-Minimum links: unconfigured
-Minimum speed: unconfigured
-Current weight/Max weight: 1/16
-  Active Ports:
-       Port            Time Became Active       Protocol       Mode      Weight
-    --------------- ------------------------ -------------- ------------ ------
-       Ethernet7       20:23:45                 LACP           Active      1   
+VPCS> ping fd:0:0:13::1
 
-  Configured, but inactive ports:
-       Port            Time Became Inactive    Reason                       
-    --------------- -------------------------- -----------------------------
-       Ethernet8       21:11:05                link down in LACP negotiation
+fd:0:0:13::1 icmp6_seq=1 ttl=62 time=57.369 ms
+fd:0:0:13::1 icmp6_seq=2 ttl=62 time=52.308 ms
+fd:0:0:13::1 icmp6_seq=3 ttl=62 time=58.572 ms
+fd:0:0:13::1 icmp6_seq=4 ttl=62 time=37.472 ms
+fd:0:0:13::1 icmp6_seq=5 ttl=62 time=49.787 ms
 ```
-- в результате падает физический линк на Leaf-2:
-```
-swle-dc01-02#sh int po1
-Port-Channel1 is down, line protocol is lowerlayerdown (notconnect)
-  Hardware is Port-Channel, address is 5000.0002.0008
-  Description: - Client SW
-```
-- однако, связаность сохраняется, так как работает ESI LAG:
-```
-VPCS> ping fd:0:0:8::1
-fd:0:0:8::1 icmp6_seq=1 ttl=63 time=62.799 ms
-fd:0:0:8::1 icmp6_seq=2 ttl=63 time=38.218 ms
-fd:0:0:8::1 icmp6_seq=3 ttl=63 time=56.361 ms
-fd:0:0:8::1 icmp6_seq=4 ttl=63 time=67.949 ms
-fd:0:0:8::1 icmp6_seq=5 ttl=63 time=57.554 ms
-```
-***при этом на коммутаторе Leaf-3 пропадают evpn маршруты типом 1 и 4***
 
-- при восстановлении физического линка (участника LACP), появляются необходимые для работы MultiHome префиксы, проверка на Leaf-3:
-```
-swle-dc01-03#sh bgp evpn next-hop fd:0:0:4::1 esi 0000:8888:8888:8888:8888
-BGP routing table information for VRF default
-Router identifier 10.1.0.5, local AS number 65003
-Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
-                    c - Contributing to ECMP, % - Pending BGP convergence
-Origin codes: i - IGP, e - EGP, ? - incomplete
-AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
-
-          Network                Next Hop              Metric  LocPref Weight  Path
- * >Ec    RD: 10.1.0.4:1 auto-discovery 0000:8888:8888:8888:8888
-                                 fd:0:0:4::1           -       100     0       65000 65002 i
- *  ec    RD: 10.1.0.4:1 auto-discovery 0000:8888:8888:8888:8888
-                                 fd:0:0:4::1           -       100     0       65000 65002 i
- * >Ec    RD: 10.1.0.4:101 mac-ip 10100 0050.7966.6808 fd::11:2050:79ff:fe66:6808
-                                 fd:0:0:4::1           -       100     0       65000 65002 i
- *  ec    RD: 10.1.0.4:101 mac-ip 10100 0050.7966.6808 fd::11:2050:79ff:fe66:6808
-                                 fd:0:0:4::1           -       100     0       65000 65002 i
- * >Ec    RD: 10.1.0.4:1 ethernet-segment 0000:8888:8888:8888:8888 fd:0:0:4::1
-                                 fd:0:0:4::1           -       100     0       65000 65002 i
- *  ec    RD: 10.1.0.4:1 ethernet-segment 0000:8888:8888:8888:8888 fd:0:0:4::1
-                                 fd:0:0:4::1           -       100     0       65000 65002 i
-``` 
 
 ### 4 Конфигурации устройств
 - Spine коммутаторы:
