@@ -1,0 +1,75 @@
+ASBR-1#sh run
+! Command: show running-config
+! device: ASBR-1 (vEOS-lab, EOS-4.29.2F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+hostname ASBR-1
+!
+spanning-tree mode mstp
+!
+interface Ethernet1
+!
+interface Ethernet2
+!
+interface Ethernet3
+   description - Uplink Leaf-2
+   no switchport
+   ipv6 enable
+   ipv6 address fd:0:0:100::2/64
+!
+interface Ethernet4
+   description - Uplink Leaf-3
+   no switchport
+   ipv6 enable
+   ipv6 address fd:0:0:101::2/64
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Loopback0
+   ip address 10.5.5.5/32
+!
+interface Loopback1
+   ipv6 enable
+   ipv6 address fd:0:0:13::1/64
+!
+interface Management1
+!
+ip routing
+!
+ipv6 unicast-routing
+!
+ipv6 route fd:0:0:8::/64 fd:0:0:100::1
+ipv6 route fd:0:0:8::/64 fd:0:0:101::1
+ipv6 route fd:0:0:11::/64 fd:0:0:101::1
+!
+router bgp 5555
+   router-id 10.5.5.5
+   graceful-restart restart-time 300
+   neighbor leaves peer group
+   neighbor leaves bfd
+   neighbor leaves timers 20 60
+   neighbor leaves graceful-restart
+   neighbor fd:0:0:100::1 peer group leaves
+   neighbor fd:0:0:100::1 remote-as 65002
+   neighbor fd:0:0:101::1 peer group leaves
+   neighbor fd:0:0:101::1 remote-as 65003
+   !
+   address-family ipv6
+      neighbor leaves activate
+      redistribute connected
+      redistribute static
+!
+end
