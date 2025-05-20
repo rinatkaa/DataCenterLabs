@@ -45,15 +45,24 @@
 | VPN.6500.10 | fd:0:0:8::1/64 |     65000:10 | 65000:10 | 10010 |
 | VPN.6500.20 | fd:0:0:11::1/64 |    65000:20 | 65000:20 | 10020 |
 
-#### Таблица №4 Настройки MAC VRF
-| VRF  | IPv6 network | RD | RT Both | VNI |
-| :------------: |:---------------:| :-----:| :---------------:| :---------------:|
-| Vlan 10 | fd:0:0:8::1/64 |     65000:10 | 65000:10 | 10010 |
-| Vlan 20 | fd:0:0:11::1/64 |    65000:20 | 65000:20 | 10020 |
-
 ### Общая сетевая схема (L2/L3)
 
 ![Схема](net-diag.png)
+
+### Конфигурации устройств
+- Spine коммутаторы:
+  - [swsp-dc1-1](configs/swsp-dc01-01.conf)
+  - [swsp-dc1-2](configs/swsp-dc01-02.conf)
+- Leaf коммутаторы:
+  - [swle-dc1-1](configs/swle-dc01-01.conf)
+  - [swle-dc1-2](configs/swle-dc01-02.conf)
+  - [swle-dc1-3](configs/swle-dc01-03.conf)
+- ASBR
+  - [asbr-1](configs/swle-dc01-01.conf)
+- Client switch
+  - [client-sw](configs/client-sw.conf)
+    
+### Темы документа
 
 ### Базовая настройка и проверки для BGP underlay и использовании ipv6 
 
