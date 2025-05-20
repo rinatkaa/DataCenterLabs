@@ -58,7 +58,7 @@
   - [swle-dc1-2](configs/swle-dc01-02.conf)
   - [swle-dc1-3](configs/swle-dc01-03.conf)
 - ASBR
-  - [asbr-1](configs/swle-dc01-01.conf)
+  - [asbr-1](configs/asbr-1)
 - Client switch
   - [client-sw](configs/client-sw.conf)
     
