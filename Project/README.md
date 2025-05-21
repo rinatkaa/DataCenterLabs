@@ -49,6 +49,8 @@
 
 ![Схема](net-diag-last.png)
 
+### [Проект в PDF](configs/Project-RRG-last.pdf)
+
 ### Конфигурации устройств
 - Spine коммутаторы:
   - [swsp-dc1-1](configs/swsp-dc01-01.conf)
